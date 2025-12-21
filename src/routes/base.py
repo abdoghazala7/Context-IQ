@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status, Depends
 from fastapi.responses import JSONResponse
-from helpers.config import get_config, Config
+from models import responsesignal
 
 base_router = APIRouter(
     prefix="/api/v1",
@@ -8,9 +8,9 @@ base_router = APIRouter(
 )
 
 @base_router.get("/")
-async def welcome_and_health_check(config: Config = Depends(get_config)):
+async def welcome_and_health_check(signal: responsesignal=responsesignal.WELCOME_AND_HEALTH_CHECK_MESSAGE.value):
 
     return JSONResponse(
-        content={"message": config.WELCOME_AND_HEALTH_CHECK_MESSAGE},
+        content={"message": signal},
         status_code=status.HTTP_200_OK,
     )
