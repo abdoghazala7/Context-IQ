@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from routes.base import base_router
-from routes.upload import Upload_router
+from routes.base import Base_router
+from routes.upload import Data_router
 
 app = FastAPI()
 
-app.include_router(base_router)
-app.include_router(Upload_router)
+app.include_router(Base_router)
+app.include_router(Data_router)
