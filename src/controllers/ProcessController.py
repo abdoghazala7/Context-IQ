@@ -66,14 +66,4 @@ class processcontroller(basecontroller):
             metadatas=file_content_metadata
         )
 
-        # Convert Document objects to dictionaries to make them JSON serializable
-        chunk_dicts = [
-            {
-                "content": chunk.page_content,
-                "metadata": chunk.metadata,
-                "chunk_index": idx
-            }
-            for idx, chunk in enumerate(chunks)
-        ]
-
-        return chunk_dicts
+        return chunks
