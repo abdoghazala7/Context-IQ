@@ -8,7 +8,7 @@ Base_router = APIRouter(
 )
 
 @Base_router.get("/")
-async def welcome_and_health_check(signal: responsesignal=responsesignal.WELCOME_AND_HEALTH_CHECK_MESSAGE.value):
+async def welcome_and_health_check(signal: str = responsesignal.WELCOME_AND_HEALTH_CHECK_MESSAGE.value):
 
     return JSONResponse(
         content={"message": signal},
