@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from models import responsesignal
 
