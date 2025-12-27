@@ -11,3 +11,5 @@ class responsesignal(Enum):
     FILE_NOT_FOUND = "File not found. Please upload the file first ❌"
     PROCESSING_SUCCESS = "processed successfully ✅"
     PROCESSING_FAILED = "processing failed ❗"
+    NO_FILES_ERROR = "not_found_files ❗"
+    FILE_ID_ERROR = "no_file_found_with_this_id ❗"

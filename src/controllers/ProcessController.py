@@ -33,6 +33,9 @@ class processcontroller(basecontroller):
 
     def get_file_content(self, file_id: str):
         file_path = self.get_file_path(file_id)
+        if not os.path.exists(file_path):
+            return None
+        
         file_extension = self.get_file_extension(file_id)
 
         if file_extension == processingenum.TXT.value:
@@ -48,8 +51,8 @@ class processcontroller(basecontroller):
         text_splitter = RecursiveCharacterTextSplitter( 
                             chunk_size=chunk_size, 
                             chunk_overlap=overlap_size, 
-                            length_function=len, 
-                            separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""] )
+                            length_function=len
+                        )
 
         file_content_texts = [
             rec.page_content
