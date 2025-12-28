@@ -68,7 +68,6 @@ async def upload_file(
             }
         )
     
-    logger.info(responsesignal.FILE_UPLOAD_SUCCESS.value)
 
     # create asset record in the database
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
