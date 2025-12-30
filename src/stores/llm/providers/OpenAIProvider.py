@@ -83,7 +83,7 @@ class OpenAIProvider(LLMInterface):
         
         response = self.client.embeddings.create(
             model = self.embedding_model_id,
-            input = text,
+            input = self.process_text(text),
             encoding_format="float"
         )
 
