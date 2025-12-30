@@ -84,6 +84,7 @@ class OpenAIProvider(LLMInterface):
         response = self.client.embeddings.create(
             model = self.embedding_model_id,
             input = text,
+            encoding_format="float"
         )
 
         if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:
