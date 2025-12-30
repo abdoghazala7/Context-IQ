@@ -1,0 +1,4 @@
+{
+    "python.languageServer": "Pylance",
+    "postman.settings.dotenv-detection-notification-visibility": false
+}
