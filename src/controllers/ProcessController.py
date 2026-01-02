@@ -46,7 +46,7 @@ class processcontroller(basecontroller):
             return None
 
     def get_file_chunks(self, file_content: list, file_id: str,
-                            chunk_size: int=100, overlap_size: int=20):
+                            chunk_size: int=1000, overlap_size: int=200):
 
         text_splitter = RecursiveCharacterTextSplitter( 
                             chunk_size=chunk_size, 
