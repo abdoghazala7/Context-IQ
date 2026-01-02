@@ -11,3 +11,17 @@ PyMuPDF==1.26.7
 motor==3.7.1
 openai==2.14.0
 cohere==5.20.1
+groq==1.0.0
+# ---------------------------------------------------------------------------
+# TORCH INSTALLATION GUIDE
+#
+# [CASE 1] IF YOU DO NOT HAVE A GPU (CPU Only):
+# Run this command MANUALLY before installing requirements to install the CPU version:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#
+# [CASE 2] IF YOU HAVE AN NVIDIA GPU:
+# Skip the manual command above. Simply run 'pip install -r requirements.txt',
+# and the standard version with CUDA support will be installed automatically.
+# ---------------------------------------------------------------------------
+sentence-transformers==5.2.0
+langchain-huggingface==1.2.0
