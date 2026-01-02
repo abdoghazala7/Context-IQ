@@ -6,7 +6,7 @@ import logging
 class CoHereProvider(LLMInterface):
 
     def __init__(self, api_key: str,
-                       default_input_max_characters: int=12000,
+                       default_input_max_characters: int=10000,
                        default_generation_max_output_tokens: int=1024,
                        default_generation_temperature: float=0.1):
         
@@ -28,9 +28,10 @@ class CoHereProvider(LLMInterface):
     def set_generation_model(self, model_id: str):
         self.generation_model_id = model_id
 
-    def set_embedding_model(self, model_id: str, embedding_size: int):
+    def set_embedding_model(self, model_id: str, embedding_size: int= None):
         self.embedding_model_id = model_id
-        self.embedding_size = embedding_size
+        if embedding_size:
+            self.embedding_size = embedding_size
 
     def process_text(self, text: str):
         return text[:self.default_input_max_characters].strip()
