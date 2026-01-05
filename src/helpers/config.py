@@ -16,6 +16,10 @@ class Config(BaseSettings):
     GENERATION_BACKEND: str
     EMBEDDING_BACKEND: str
 
+    VECTOR_DB_BACKEND: str
+    VECTOR_DB_NAME: str
+    VECTOR_DB_DISTANCE_METHOD: str
+
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_API_URL: Optional[str] = None
     COHERE_API_KEY: Optional[str] = None
