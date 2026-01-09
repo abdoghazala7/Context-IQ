@@ -1,4 +1,5 @@
 from qdrant_client import models, QdrantClient
+from models.db_schemes import RetrievedDocument
 from ..VectorDBInterface import VectorDBInterface
 from ..VectorDBEnums import DistanceMethodEnums
 import logging
@@ -206,7 +207,7 @@ class QdrantDBProvider(VectorDBInterface):
         
 
     def search_by_vector(self, collection_name: str, vector: List[float], 
-                               limit: int = 5, score_threshold: Optional[float] = None) -> List[models.ScoredPoint]:
+                               limit: int = 5, score_threshold: Optional[float] = None) -> List[RetrievedDocument]:
         self._ensure_client_connected()
         
         if not self.is_collection_existed(collection_name):
@@ -234,7 +235,14 @@ class QdrantDBProvider(VectorDBInterface):
             results = response.points
             
             self.logger.debug(f"Search returned {len(results)} results")
-            return results
+
+            return [
+            RetrievedDocument(**{
+                "score": result.score,
+                "text": result.payload["text"],
+            })
+            for result in results
+        ]
 
         except Exception as e:
             self.logger.error(f"Error during search: {e}")
