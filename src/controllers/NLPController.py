@@ -6,12 +6,13 @@ import json
 
 class NLPController(basecontroller):
 
-    def __init__(self, vectordb_client, generation_client, 
+    def __init__(self, vectordb_client, generation_client, template_parser,
                  embedding_client= None):
         super().__init__()
 
         self.vectordb_client = vectordb_client
         self.generation_client = generation_client
+        self.template_parser = template_parser
         self.embedding_client = embedding_client
 
     def create_collection_name(self, project_id: str):
@@ -88,4 +89,50 @@ class NLPController(basecontroller):
 
         return results
     
+    def answer_rag_question(self, project: Project, query: str, limit: int = 10):
+        
+        answer, full_prompt, chat_history = None, None, None
+
+        # step1: retrieve related documents
+        retrieved_documents = self.search_vector_db_collection(
+            project=project,
+            text=query,
+            limit=limit,
+        )
+
+        if not retrieved_documents or len(retrieved_documents) == 0:
+            return answer, full_prompt, chat_history
+        
+        # step2: Construct LLM prompt
+        system_prompt = self.template_parser.get("rag", "system_prompt")
+
+        documents_prompts = "\n".join([
+            self.template_parser.get("rag", "document_prompt", {
+                    "doc_num": idx + 1,
+                    "chunk_text": doc.text,
+            })
+            for idx, doc in enumerate(retrieved_documents)
+        ])
+
+        footer_prompt = self.template_parser.get("rag", "footer_prompt", {
+            "query": query
+        })
+
+        # step3: Construct Generation Client Prompts
+        chat_history = [
+            self.generation_client.construct_prompt(
+                prompt=system_prompt,
+                role=self.generation_client.enums.SYSTEM.value,
+            )
+        ]
+
+        full_prompt = "\n\n".join([ documents_prompts,  footer_prompt])
+
+        # step4: Retrieve the Answer
+        answer = self.generation_client.generate_text(
+            prompt=full_prompt,
+            chat_history=chat_history
+        )
+
+        return answer, full_prompt, chat_history
     
