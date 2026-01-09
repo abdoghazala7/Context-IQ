@@ -33,6 +33,9 @@ class Config(BaseSettings):
     GENERATION_DEFAULT_MAX_TOKENS: Optional[int] = None
     GENERATION_DEFAULT_TEMPERATURE: Optional[float] = None
 
+    PRIMARY_LANG: str = "en"
+    DEFAULT_LANG: str = "en"
+
     @field_validator(
         'OPENAI_API_KEY', 'OPENAI_API_URL', 'COHERE_API_KEY', 'GROQ_API_KEY',
         'GENERATION_MODEL_ID', 'EMBEDDING_MODEL_ID', 'EMBEDDING_MODEL_SIZE',
