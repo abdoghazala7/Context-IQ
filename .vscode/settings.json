@@ -1,0 +1,5 @@
+{
+    "python.languageServer": "Pylance",
+    "postman.settings.dotenv-detection-notification-visibility": false,
+    "python.terminal.activateEnvironment": true
+}
