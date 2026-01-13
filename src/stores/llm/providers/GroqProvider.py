@@ -120,7 +120,7 @@ class GroqProvider(LLMInterface):
             return None
 
         try:
-            processed_text = self.process_text(text)
+            processed_text = text
 
             if "e5" in self.embedding_model_id:
                 if document_type == DocumentTypeEnum.QUERY.value:
@@ -140,5 +140,5 @@ class GroqProvider(LLMInterface):
     def construct_prompt(self, prompt: str, role: str):
         return {
             "role": role,
-            "content": self.process_text(prompt)
+            "content": prompt
         }
