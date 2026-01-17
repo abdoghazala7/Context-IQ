@@ -1,15 +1,16 @@
 services:
-  postgres:
   # ------------------- PostgreSQL -------------------
-    image: postgres:latest
+  postgres:
+
+    image: pgvector/pgvector:pg17
     
-    container_name: postgres
+    container_name: postgresdb
     
     ports:
       - "5432:5432"
     
     volumes:
-      - postgresdata:/var/lib/postgresql
+      - postgresdata:/var/lib/postgresql/data
     
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
