@@ -4,6 +4,7 @@ from groq import Groq
 from langchain_huggingface import HuggingFaceEmbeddings
 import logging
 import torch   
+from typing import List, Union
 
 class GroqProvider(LLMInterface):
 
@@ -98,19 +99,10 @@ class GroqProvider(LLMInterface):
             self.logger.error(f"Error while generating text with Groq: {str(e)}")
             return None
     
-    def embed_text(self, text: str, document_type: str = None):
-        """
-        Embeds a single text string into a vector using the HuggingFace model.
-
-        Args:
-            text (str): The content to embed (e.g., `chunk.page_content`).
-            document_type (str, optional): If `DocumentTypeEnum.QUERY`, uses `embed_query`.
-                                           Otherwise, uses `embed_documents` (for chunks).
-
-        Returns:
-            list[float] | None: A single list of floats representing the vector, or None if failed.
-        """
-
+    def embed_text(self, text: Union[str, List[str]], document_type: str = None):
+        """ Embeds text(s) using the HuggingFace embedding model. 
+            returns a list of embeddings.
+            """
         if not self.embedding_client:
             self.logger.error("Embedding model was not initialized")
             return None
@@ -118,20 +110,36 @@ class GroqProvider(LLMInterface):
         if not self.embedding_model_id:
             self.logger.error("Embedding model for Groq was not set")
             return None
+        
+        is_single_text = isinstance(text, str)
+        
+        texts_to_process = [text] if is_single_text else text
 
         try:
-            processed_text = text
+            processed_texts = []
+            for single_text in texts_to_process:
+                processed = single_text
+                
+                if "e5" in self.embedding_model_id.lower():
+                    if document_type == DocumentTypeEnum.QUERY.value:
+                        processed = f"query: {processed}"
+                    else:
+                        processed = f"passage: {processed}"
+                
+                processed_texts.append(processed)
 
-            if "e5" in self.embedding_model_id:
-                if document_type == DocumentTypeEnum.QUERY.value:
-                    processed_text = f"query: {processed_text}"
-                else:
-                    processed_text = f"passage: {processed_text}"
-
-            if document_type == DocumentTypeEnum.QUERY.value:
-                return self.embedding_client.embed_query(processed_text)
+            if is_single_text:
+                embedding = self.embedding_client.embed_query(processed_texts[0])
+                if not embedding:
+                    self.logger.error("Error while embedding text with HuggingFace")
+                    return None
+                return [embedding]
             else:
-                return self.embedding_client.embed_documents([processed_text])[0]
+                embeddings = self.embedding_client.embed_documents(processed_texts)
+                if not embeddings or len(embeddings) == 0:
+                    self.logger.error("Error while embedding texts with HuggingFace")
+                    return None
+                return embeddings
 
         except Exception as e:
             self.logger.error(f"Error while embedding text with HuggingFace: {str(e)}")
