@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 from pydantic import field_validator
-
+from typing import List
 class Config(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -19,9 +19,11 @@ class Config(BaseSettings):
     GENERATION_BACKEND: str
     EMBEDDING_BACKEND: str
 
+    VECTOR_DB_BACKEND_LITERAL: List[str]
     VECTOR_DB_BACKEND: str
     VECTOR_DB_NAME: str
     VECTOR_DB_DISTANCE_METHOD: str
+    VECTOR_DB_PGVEC_INDEX_THRESHOLD : int = 1000
 
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_API_URL: Optional[str] = None
