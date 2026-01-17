@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, Depends, File, UploadFile, status, Request
-from controllers import uploadcontroller, processcontroller
+from controllers import uploadcontroller, processcontroller, NLPController
 from fastapi.responses import JSONResponse
 from helpers.config import Config , get_config
 from models import responsesignal
@@ -72,7 +72,7 @@ async def upload_file(
     # create asset record in the database
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
     asset_resource = Asset(
-        asset_project_id=project_id,
+        asset_project_id=project.project_id,
         asset_type=AssetTypeEnum.FILE.value,
         asset_name=file_id,
         asset_size=os.path.getsize(file_path)
@@ -107,11 +107,19 @@ async def process_file(
     asset_model = await AssetModel.create_instance(
             db_client=request.app.db_client
         )
+    
+    
+    nlp_controller = NLPController(
+       vectordb_client=request.app.vectordb_client,
+       generation_client=request.app.generation_client,
+       template_parser=request.app.template_parser,
+   )
+    
 
     project_files_ids = {}
     if process_request.file_id:
         asset_record = await asset_model.get_asset_record(
-            asset_project_id=project_id,
+            asset_project_id=project.project_id,
             asset_name=process_request.file_id
         )
 
@@ -131,7 +139,7 @@ async def process_file(
         
 
         project_files = await asset_model.get_all_project_assets(
-            asset_project_id=project_id,
+            asset_project_id=project.project_id,
             asset_type=AssetTypeEnum.FILE.value,
         )
 
@@ -158,8 +166,13 @@ async def process_file(
                     )
 
     if do_reset == 1:
+        # delete associated vectors collection
+        collection_name = nlp_controller.create_collection_name(project_id=project.project_id)
+        _ = await request.app.vectordb_client.delete_collection(collection_name=collection_name)
+
+        # delete associated chunks
         _ = await chunk_model.delete_chunks_by_db_project_id(
-            db_project_id=project_id
+            db_project_id=project.project_id
         )
 
     for asset_id, file_id in project_files_ids.items():
@@ -190,7 +203,7 @@ async def process_file(
                 chunk_text=chunk.page_content,
                 chunk_metadata=chunk.metadata,
                 chunk_order=i+1,
-                chunk_project_id=project_id,
+                chunk_project_id=project.project_id,
                 chunk_asset_id=asset_id
             )
             for i, chunk in enumerate(file_chunks)
