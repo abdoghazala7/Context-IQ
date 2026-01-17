@@ -51,7 +51,8 @@ class processcontroller(basecontroller):
         text_splitter = RecursiveCharacterTextSplitter( 
                             chunk_size=chunk_size, 
                             chunk_overlap=overlap_size, 
-                            length_function=len
+                            length_function=len,
+                            is_separator_regex=False
                         )
 
         file_content_texts = [
