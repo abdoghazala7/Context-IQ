@@ -44,6 +44,8 @@ class GroqProvider(LLMInterface):
         try:  
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             
+            self.logger.info(f"Loading embedding model: {model_id} on device: {device}")
+            
             self.embedding_client = HuggingFaceEmbeddings(
                 model_name=model_id,
                 model_kwargs={
@@ -51,13 +53,16 @@ class GroqProvider(LLMInterface):
                     'trust_remote_code': True 
                 },
                 encode_kwargs={
-                    'normalize_embeddings': True
+                    'normalize_embeddings': False
                 },
                 show_progress=False 
             )
             
+            self.logger.info(f"Successfully loaded embedding model: {model_id}")
+            
         except Exception as e:
             self.logger.error(f"Failed to load embedding model: {str(e)}")
+            raise
 
     def process_text(self, text: str):
         return text[:self.default_input_max_characters].strip()

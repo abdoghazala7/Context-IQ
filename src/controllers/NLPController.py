@@ -97,7 +97,7 @@ class NLPController(basecontroller):
 
         return results
     
-    async def answer_rag_question(self, project: Project, query: str, limit: int = 10):
+    async def answer_rag_question(self, project: Project, query: str, limit: int = 10, score_threshold: Optional[float] = None):
         
         answer, full_prompt, chat_history = None, None, None
 
@@ -106,6 +106,7 @@ class NLPController(basecontroller):
             project=project,
             text=query,
             limit=limit,
+            score_threshold=score_threshold
         )
 
         if not retrieved_documents or len(retrieved_documents) == 0:
