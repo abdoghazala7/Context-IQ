@@ -31,3 +31,9 @@ alembic==1.18.0
 psycopg2-binary==2.9.11
 pgvector==0.4.2
 nltk==3.9.2
+pymongo==4.16.0
+
+# Monitoring and metrics
+prometheus-client==0.24.1
+starlette-exporter==0.23.0
+fastapi-health==0.4.0
