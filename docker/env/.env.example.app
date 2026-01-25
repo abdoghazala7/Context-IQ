@@ -5,11 +5,11 @@ MAX_FILE_SIZE = 10485760  # 10MB
 FILE_DEFAULT_CHUNK_SIZE = 512000 # 512KB
 
 # ========================= DB Config =========================
-POSTGRES_USERNAME=
-POSTGRES_PASSWORD=
-POSTGRES_HOST=
-POSTGRES_PORT=
-POSTGRES_MAIN_DATABASE=
+POSTGRES_USERNAME="postgres"
+POSTGRES_PASSWORD="password"
+POSTGRES_HOST="pgvector"
+POSTGRES_PORT=5432
+POSTGRES_MAIN_DATABASE="minirag"
 
 # ========================= LLM Config =========================
 GENERATION_BACKEND = "GROQ"
@@ -36,5 +36,5 @@ VECTOR_DB_DISTANCE_METHOD="cosine"
 VECTOR_DB_PGVEC_INDEX_THRESHOLD =
 
 # ========================= Template Configs =========================
-PRIMARY_LANG = "en"
+PRIMARY_LANG = "ar"
 DEFAULT_LANG = "en"

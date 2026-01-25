@@ -8,16 +8,14 @@ from typing import List, Optional, Union, Dict, Any
 
 class QdrantDBProvider(VectorDBInterface):
 
-    def __init__(self, db_path: str, distance_method: str):
-        """Initialize QdrantDBProvider.
-        
-        Args:
-            db_path: Path to the local Qdrant database
-            distance_method: Distance metric (COSINE or DOT)
-        """
+    def __init__(self, db_client: str, default_vector_size: int = 768,
+                       distance_method: Optional[str] = None, index_threshold: int = 1000):
+   
         self.client: Optional[QdrantClient] = None
-        self.db_path = db_path
+        self.db_client = db_client
         self.distance_method: Optional[models.Distance] = None
+        self.default_vector_size = default_vector_size
+        self.index_threshold = index_threshold
 
         if distance_method == DistanceMethodEnums.COSINE.value:
             self.distance_method = models.Distance.COSINE
@@ -26,17 +24,17 @@ class QdrantDBProvider(VectorDBInterface):
         else:
             raise ValueError(f"Unsupported distance method: {distance_method}")
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("uvicorn")
 
-    def connect(self) -> None:
+    async def connect(self) -> None:
         try:
-            self.client = QdrantClient(path=self.db_path)
-            self.logger.info(f"Successfully connected to Qdrant at {self.db_path}")
+            self.client = QdrantClient(path=self.db_client)
+            self.logger.info(f"Successfully connected to Qdrant at {self.db_client}")
         except Exception as e:
             self.logger.error(f"Failed to connect to Qdrant: {e}")
             raise
 
-    def disconnect(self) -> None:
+    async def disconnect(self) -> None:
         if self.client is not None:
             try:
                 self.client.close()
@@ -49,32 +47,34 @@ class QdrantDBProvider(VectorDBInterface):
         if self.client is None:
             raise RuntimeError("Client not connected. Call connect() method first.")
     
-    def is_collection_existed(self, collection_name: str) -> bool:
+    async def is_collection_existed(self, collection_name: str) -> bool:
         self._ensure_client_connected()
         return self.client.collection_exists(collection_name=collection_name)
     
-    def list_all_collections(self) -> List:
+    async def list_all_collections(self) -> List:
         self._ensure_client_connected()
         return self.client.get_collections()
     
-    def get_collection_info(self, collection_name: str) -> dict:
+    async def get_collection_info(self, collection_name: str) -> dict:
         self._ensure_client_connected()
         return self.client.get_collection(collection_name=collection_name)
     
-    def delete_collection(self, collection_name: str):
+    async def delete_collection(self, collection_name: str):
         self._ensure_client_connected()
-        if self.is_collection_existed(collection_name):
+        if await self.is_collection_existed(collection_name):
+            self.logger.info(f"Deleting Qdrant collection: {collection_name}")
             return self.client.delete_collection(collection_name=collection_name)
         
-    def create_collection(self, collection_name: str, 
+    async def create_collection(self, collection_name: str, 
                                 embedding_size: int,
                                 do_reset: bool = False):
         self._ensure_client_connected()
 
         if do_reset:
-            _ = self.delete_collection(collection_name=collection_name)
+            _ = await self.delete_collection(collection_name=collection_name)
         
-        if not self.is_collection_existed(collection_name):
+        if not await self.is_collection_existed(collection_name):
+            self.logger.info(f"Creating new Qdrant collection: {collection_name}")
             _ = self.client.create_collection(
                 collection_name=collection_name,
                 vectors_config=models.VectorParams(
@@ -87,7 +87,7 @@ class QdrantDBProvider(VectorDBInterface):
         
         return False
     
-    def insert_one(self, collection_name: str, text: str, vector: List[float],
+    async def insert_one(self, collection_name: str, text: str, vector: List[float],
                          metadata: Optional[Dict[str, Any]] = None, 
                          record_id: Optional[Union[str, int]] = None) -> bool:
         """Insert a single point into the collection.
@@ -104,7 +104,7 @@ class QdrantDBProvider(VectorDBInterface):
         """
         self._ensure_client_connected()
         
-        if not self.is_collection_existed(collection_name):
+        if not await self.is_collection_existed(collection_name):
             self.logger.error(f"Cannot insert record to non-existent collection: {collection_name}")
             return False
         
@@ -136,7 +136,7 @@ class QdrantDBProvider(VectorDBInterface):
             self.logger.error(f"Error while inserting point: {e}")
             return False
     
-    def insert_many(self, collection_name: str, texts: List[str], 
+    async def insert_many(self, collection_name: str, texts: List[str], 
                           vectors: List[List[float]], metadata: Optional[List[Optional[Dict[str, Any]]]] = None, 
                           record_ids: Optional[List[Optional[Union[str, int]]]] = None, 
                           batch_size: int = 50) -> bool:
@@ -152,7 +152,7 @@ class QdrantDBProvider(VectorDBInterface):
             self.logger.error(f"Length mismatch: {len(texts)} texts vs {len(vectors)} vectors")
             return False
         
-        if not self.is_collection_existed(collection_name):
+        if not await self.is_collection_existed(collection_name):
             self.logger.error(f"Cannot insert records to non-existent collection: {collection_name}")
             return False
         
@@ -206,11 +206,11 @@ class QdrantDBProvider(VectorDBInterface):
         return True
         
 
-    def search_by_vector(self, collection_name: str, vector: List[float], 
+    async def search_by_vector(self, collection_name: str, vector: List[float], 
                                limit: int = 5, score_threshold: Optional[float] = None) -> List[RetrievedDocument]:
         self._ensure_client_connected()
         
-        if not self.is_collection_existed(collection_name):
+        if not await self.is_collection_existed(collection_name):
             self.logger.error(f"Cannot search in non-existent collection: {collection_name}")
             return []
         
