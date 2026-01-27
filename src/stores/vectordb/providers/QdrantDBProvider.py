@@ -8,7 +8,7 @@ from typing import List, Optional, Union, Dict, Any
 
 class QdrantDBProvider(VectorDBInterface):
 
-    def __init__(self, db_client: str, default_vector_size: int = 768,
+    def __init__(self, db_client: str, default_vector_size: int = 1024,
                        distance_method: Optional[str] = None, index_threshold: int = 1000):
    
         self.client: Optional[QdrantClient] = None
