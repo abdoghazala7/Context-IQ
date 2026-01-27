@@ -9,7 +9,7 @@ import json
 
 class PGVectorProvider(VectorDBInterface):
 
-    def __init__(self, db_client, default_vector_size: int = 768,
+    def __init__(self, db_client, default_vector_size: int = 1024,
                        distance_method: Optional[str] = None, index_threshold: int = 1000):
         
         self.db_client = db_client

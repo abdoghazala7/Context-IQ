@@ -3,17 +3,19 @@ from models.db_schemes import Project, DataChunk
 from stores.llm.LLMEnums import DocumentTypeEnum
 from typing import List, Optional, Union
 import json
+import logging
 
 class NLPController(basecontroller):
 
     def __init__(self, vectordb_client, generation_client, template_parser,
-                 embedding_client= None):
+                 embedding_client):
         super().__init__()
 
         self.vectordb_client = vectordb_client
         self.generation_client = generation_client
         self.template_parser = template_parser
         self.embedding_client = embedding_client
+        self.logger = logging.getLogger(__name__)
 
     def create_collection_name(self, project_id: str):
         return f"collection_{self.vectordb_client.default_vector_size}_{project_id}".strip()
@@ -40,8 +42,30 @@ class NLPController(basecontroller):
         # step2: manage items
         texts = [ self.generation_client.process_text(c.chunk_text) for c in chunks ]
         metadata = [ c.chunk_metadata for c in  chunks]
-        vectors = self.generation_client.embed_text(text=texts, 
-                                                  document_type=DocumentTypeEnum.DOCUMENT.value)
+        vectors = []
+        BATCH_SIZE = 96 # Cohere allows a maximum of 96 texts per API call
+
+        for i in range(0, len(texts), BATCH_SIZE):
+            batch_texts = texts[i : i + BATCH_SIZE]
+
+            if not batch_texts:
+                continue
+
+            # This returns a List[List[float]]
+            batch_vectors = self.embedding_client.embed_text(
+                text=batch_texts, 
+                document_type=DocumentTypeEnum.DOCUMENT.value
+            )
+
+            if batch_vectors:
+                vectors.extend(batch_vectors)
+            else:
+                error_msg = f"Batch starting at index {i} failed. Data alignment compromised."
+                self.logger.error(error_msg)
+                raise ValueError(error_msg) 
+            
+        if len(vectors) != len(texts):
+             raise ValueError(f"Mismatch! Texts: {len(texts)}, Vectors: {len(vectors)}")
 
         # step3: create collection if not exists
         _ = await self.vectordb_client.create_collection(
@@ -72,7 +96,7 @@ class NLPController(basecontroller):
 
         # step2: get text embedding vector
         processed_text = self.generation_client.process_text(text)
-        vectors = self.generation_client.embed_text(text=processed_text, 
+        vectors = self.embedding_client.embed_text(text=processed_text, 
                                                  document_type=DocumentTypeEnum.QUERY.value)
 
         if not vectors or len(vectors) == 0:

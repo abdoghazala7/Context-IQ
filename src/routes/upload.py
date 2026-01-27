@@ -113,6 +113,7 @@ async def process_file(
        vectordb_client=request.app.vectordb_client,
        generation_client=request.app.generation_client,
        template_parser=request.app.template_parser,
+       embedding_client=request.app.embedding_client,
    )
     
 

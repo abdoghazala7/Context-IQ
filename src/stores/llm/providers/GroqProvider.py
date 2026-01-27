@@ -1,15 +1,13 @@
 from ..LLMInterface import LLMInterface
-from ..LLMEnums import GroqEnums, DocumentTypeEnum
+from ..LLMEnums import GroqEnums
 from groq import Groq
-from langchain_huggingface import HuggingFaceEmbeddings
 import logging
-import torch   
 from typing import List, Union
 
 class GroqProvider(LLMInterface):
 
     def __init__(self, api_key: str,
-                 default_input_max_characters: int=2000,
+                 default_input_max_characters: int=1200,
                  default_generation_max_output_tokens: int=1024,
                  default_generation_temperature: float=0.1):
         
@@ -37,32 +35,7 @@ class GroqProvider(LLMInterface):
         self.generation_model_id = model_id
 
     def set_embedding_model(self, model_id: str, embedding_size: int = None):
-        self.embedding_model_id = model_id
-        if embedding_size:
-            self.embedding_size = embedding_size
-
-        try:  
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-            
-            self.logger.info(f"Loading embedding model: {model_id} on device: {device}")
-            
-            self.embedding_client = HuggingFaceEmbeddings(
-                model_name=model_id,
-                model_kwargs={
-                    'device': device, 
-                    'trust_remote_code': True 
-                },
-                encode_kwargs={
-                    'normalize_embeddings': False
-                },
-                show_progress=False 
-            )
-            
-            self.logger.info(f"Successfully loaded embedding model: {model_id}")
-            
-        except Exception as e:
-            self.logger.error(f"Failed to load embedding model: {str(e)}")
-            raise
+        pass
 
     def process_text(self, text: str):
         return text[:self.default_input_max_characters].strip()
@@ -105,50 +78,7 @@ class GroqProvider(LLMInterface):
             return None
     
     def embed_text(self, text: Union[str, List[str]], document_type: str = None):
-        """ Embeds text(s) using the HuggingFace embedding model. 
-            returns a list of embeddings.
-            """
-        if not self.embedding_client:
-            self.logger.error("Embedding model was not initialized")
-            return None
-        
-        if not self.embedding_model_id:
-            self.logger.error("Embedding model for Groq was not set")
-            return None
-        
-        is_single_text = isinstance(text, str)
-        
-        texts_to_process = [text] if is_single_text else text
-
-        try:
-            processed_texts = []
-            for single_text in texts_to_process:
-                processed = single_text
-                
-                if "e5" in self.embedding_model_id.lower():
-                    if document_type == DocumentTypeEnum.QUERY.value:
-                        processed = f"query: {processed}"
-                    else:
-                        processed = f"passage: {processed}"
-                
-                processed_texts.append(processed)
-
-            if is_single_text:
-                embedding = self.embedding_client.embed_query(processed_texts[0])
-                if not embedding:
-                    self.logger.error("Error while embedding text with HuggingFace")
-                    return None
-                return [embedding]
-            else:
-                embeddings = self.embedding_client.embed_documents(processed_texts)
-                if not embeddings or len(embeddings) == 0:
-                    self.logger.error("Error while embedding texts with HuggingFace")
-                    return None
-                return embeddings
-
-        except Exception as e:
-            self.logger.error(f"Error while embedding text with HuggingFace: {str(e)}")
-            return None
+        pass
 
     def construct_prompt(self, prompt: str, role: str):
         return {

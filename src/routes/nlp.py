@@ -52,6 +52,7 @@ async def push_index(
        vectordb_client=request.app.vectordb_client,
        generation_client=request.app.generation_client,
        template_parser=request.app.template_parser,
+       embedding_client=request.app.embedding_client,
    )
 
    has_records = True
@@ -131,6 +132,7 @@ async def get_project_index_info(request: Request, project_id: int):
        vectordb_client=request.app.vectordb_client,
        generation_client=request.app.generation_client,
         template_parser=request.app.template_parser,
+        embedding_client=request.app.embedding_client,
 
        )
     
@@ -166,6 +168,7 @@ async def search_index(request: Request, project_id: int, search_request: Search
        vectordb_client=request.app.vectordb_client,
        generation_client=request.app.generation_client,
        template_parser=request.app.template_parser,
+       embedding_client=request.app.embedding_client,
        )
     
     results = await nlp_controller.search_vector_db_collection(
@@ -213,6 +216,7 @@ async def search_index(request: Request, project_id: int, search_request: Search
        vectordb_client=request.app.vectordb_client,
        generation_client=request.app.generation_client,
        template_parser=request.app.template_parser,
+       embedding_client=request.app.embedding_client,
        )
     
     answer, full_prompt, chat_history = await nlp_controller.answer_rag_question(
