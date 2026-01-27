@@ -27,6 +27,74 @@ target_metadata = SQLAlchemyBase.metadata
 # ... etc.
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    """
+    Function to exclude dynamic vector database tables from Alembic migrations.
+    
+    This function tells Alembic to ignore tables that are created dynamically
+    for vector storage collections. These tables follow the pattern:
+    collection_{vector_size}_{project_id}
+    
+    Note: This only applies when using PGVector as the vector database.
+    When using QDrant, no dynamic tables are created in PostgreSQL.
+    
+    Examples of excluded objects (PGVector only):
+    - Tables: collection_1536_1, collection_384_5, collection_768_100
+    - Indexes: collection_1536_1_vector_idx, collection_384_5_vector_idx
+    
+    Examples of included objects:
+    - Tables: projects, assets, chunks, collection_invalid
+    - Indexes: ix_asset_project_id, ix_chunk_asset_id
+    
+    Args:
+        object: The schema object being considered
+        name: Name of the object
+        type_: Type of the object (table, index, etc.)
+        reflected: Whether the object was reflected from database
+        compare_to: The object being compared against
+    
+    Returns:
+        True if object should be included in migrations, False otherwise
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    if type_ == 'table':
+        # Ignore dynamic vector collections tables (PGVector only)
+        # Pattern: collection_{vector_size}_{project_id}
+        if name.startswith('collection_') and '_' in name[11:]:
+            # Check if it matches the pattern: collection_{digits}_{digits}
+            parts = name.split('_')
+            if len(parts) >= 3 and parts[0] == 'collection':
+                try:
+                    # Try to parse vector_size and project_id as integers
+                    vector_size = int(parts[1])  # vector_size
+                    project_id = int(parts[2])   # project_id
+                    logger.debug(f"Excluding PGVector dynamic table: {name} (vector_size={vector_size}, project_id={project_id})")
+                    return False  # Exclude from migrations
+                except ValueError:
+                    pass  # Not a vector collection table, include it
+    
+    elif type_ == 'index':
+        # Ignore indexes on dynamic vector collections tables (PGVector only)
+        # Pattern: collection_{digits}_{digits}_vector_idx
+        if 'collection_' in name and '_vector_idx' in name:
+            # Extract table name from index name
+            table_name = name.replace('_vector_idx', '')
+            if table_name.startswith('collection_'):
+                parts = table_name.split('_')
+                if len(parts) >= 3 and parts[0] == 'collection':
+                    try:
+                        vector_size = int(parts[1])  # vector_size
+                        project_id = int(parts[2])   # project_id
+                        logger.debug(f"Excluding PGVector dynamic index: {name} for table {table_name} (vector_size={vector_size}, project_id={project_id})")
+                        return False  # Exclude from migrations
+                    except ValueError:
+                        pass
+    
+    return True  # Include all other objects
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -45,6 +113,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -66,7 +135,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata,
+            include_object=include_object
         )
 
         with context.begin_transaction():
