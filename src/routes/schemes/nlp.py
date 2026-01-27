@@ -18,7 +18,7 @@ class SearchRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError('text field cannot be empty or contain only whitespace')
         
-        max_chars = settings.INPUT_DEFAULT_MAX_CHARACTERS or 2000
+        max_chars = settings.INPUT_DEFAULT_MAX_CHARACTERS or 1200
         if len(v) > max_chars:
             raise ValueError(
                 f'text exceeds maximum length of {max_chars} characters. '

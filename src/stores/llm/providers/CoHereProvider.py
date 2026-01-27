@@ -7,7 +7,7 @@ import logging
 class CoHereProvider(LLMInterface):
 
     def __init__(self, api_key: str,
-                       default_input_max_characters: int=2000,
+                       default_input_max_characters: int=1200,
                        default_generation_max_output_tokens: int=1024,
                        default_generation_temperature: float=0.1):
         

@@ -9,7 +9,6 @@ services:
       - "8000:8000"
     volumes:
       - fastapi_data:/app/assets
-      - huggingface_cache:/root/.cache/huggingface
     networks:
       - backend
     restart: always
@@ -142,7 +141,6 @@ networks:
 
 volumes:
   fastapi_data:
-  huggingface_cache:
   pgvector:
   qdrant_data:
   prometheus_data:

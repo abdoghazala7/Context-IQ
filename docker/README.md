@@ -137,7 +137,7 @@ Prometheus is configured to scrape these metrics automatically.
 
 #### Dashboards URLs
 
-https://grafana.com/grafana/dashboards/18739-fastapi-observability/
+https://grafana.com/grafana/dashboards/22676-fastapi-observability/
 
 https://grafana.com/grafana/dashboards/1860-node-exporter-full/
 
