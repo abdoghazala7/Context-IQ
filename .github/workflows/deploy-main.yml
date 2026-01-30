@@ -23,7 +23,7 @@ jobs:
           git pull origin main
           
           echo "🐳 Rebuilding and Restarting Containers..."
-          docker compose up -d --build
+          docker compose -f ./docker/docker-compose.yml up -d --build
 
       - name: Health Check
         run: |
