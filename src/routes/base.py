@@ -4,7 +4,7 @@ from models import responsesignal
 
 Base_router = APIRouter(
     prefix="/api/v1",
-    tags=["RAG APP"]
+    tags=["Welcome Route"],
 )
 
 @Base_router.get("/")
