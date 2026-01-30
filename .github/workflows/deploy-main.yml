@@ -1,0 +1,38 @@
+name: Deploy Main Branch to Codespace
+
+on:
+  push:
+    branches:
+      - main   
+
+jobs:
+  deploy-to-codespace:
+
+    runs-on: self-hosted 
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: false 
+
+      - name: Restart Docker Containers
+        run: |
+          echo "🔄 Updates detected on Main branch. Pulling changes..."
+          
+          git pull origin main
+          
+          echo "🐳 Rebuilding and Restarting Containers..."
+          docker compose up -d --build
+
+      - name: Health Check
+        run: |
+          echo "⏳ Waiting for FastAPI to start..."
+          sleep 10
+          
+          if curl --silent --fail http://localhost:8000/docs > /dev/null; then
+            echo "✅ Deployment Successful! FastAPI is running."
+          else
+            echo "❌ Deployment Failed! Check logs."
+            exit 1
+          fi
