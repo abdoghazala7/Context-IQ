@@ -169,9 +169,9 @@ services:
       - backend
     restart: always
     
-    command: ["sh", "-c", "redis-server --appendonly yes --requirepass $REDIS_PASSWORD"]
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass $$REDIS_PASSWORD"]
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a $REDIS_PASSWORD ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
