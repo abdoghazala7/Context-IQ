@@ -1,6 +1,8 @@
 from .BaseDataModel import BaseDataModel
 from .db_schemes import Asset
 from sqlalchemy.future import select
+from sqlalchemy import func  
+from models.enums.AssetTypeEnum import AssetTypeEnum  
 
 class AssetModel(BaseDataModel):
 
@@ -43,3 +45,20 @@ class AssetModel(BaseDataModel):
             result = await session.execute(stmt)
             record = result.scalar_one_or_none()
         return record
+    
+    # For Idempotency checks
+    async def get_project_files_count(self, project_id: int) -> int:
+        """
+        Get the total count of assets of type 'FILE' in a specific project.
+        Used for generating state version for idempotency checks.
+        """
+        async with self.db_client() as session:
+            stmt = select(func.count()).select_from(Asset).where(
+                Asset.asset_project_id == project_id,
+                Asset.asset_type == AssetTypeEnum.FILE.value
+            )
+            
+            result = await session.execute(stmt)
+            
+            count = result.scalar()
+            return count if count is not None else 0
