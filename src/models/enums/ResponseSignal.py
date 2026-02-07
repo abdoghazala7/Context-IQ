@@ -21,4 +21,10 @@ class responsesignal(Enum):
     VECTORDB_SEARCH_SUCCESS = "vectordb_search_success ✅"
     RAG_ANSWER_ERROR = "rag_answer_error ❗"
     RAG_ANSWER_SUCCESS = "rag_answer_success ✅"
+    PROCESS_AND_PUSH_READY="processing_initiated"
+    PROCESS_AND_PUSH_WORKFLOW_READY="process_and_push_workflow_initiated"
+    TASK_STATUS_SUCCESS="task_completed_successfully ✅"
+    TASK_STATUS_FAILED="task_failed ❌"
+    TASK_STATUS_PENDING="task_still_in_progress ⏳"
+    TASK_STATUS_ERROR="task_status_check_error ❗"
 
