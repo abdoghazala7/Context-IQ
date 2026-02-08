@@ -1,12 +1,9 @@
-from fastapi import FastAPI, APIRouter, Depends, File, UploadFile, status, Request
-from controllers import uploadcontroller, processcontroller, NLPController
+from fastapi import APIRouter, Depends, File, UploadFile, status, Request
+from controllers import uploadcontroller
 from fastapi.responses import JSONResponse
 from helpers.config import Config , get_config
-from models import responsesignal
 from routes.schemes import processrequest
 from models.ProjectModel import ProjectModel
-from models.ChunkModel import ChunkModel
-from models.db_schemes import DataChunk
 from models.enums.ResponseSignal import responsesignal
 from models.db_schemes import Asset
 from models.AssetModel import AssetModel

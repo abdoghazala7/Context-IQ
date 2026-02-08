@@ -1,11 +1,10 @@
-from fastapi import FastAPI, APIRouter, status, Request
+from fastapi import APIRouter, status, Request
 from fastapi.responses import JSONResponse
 from routes.schemes.nlp import PushRequest, SearchRequest
 from models.ProjectModel import ProjectModel
 from models.ChunkModel import ChunkModel
 from controllers import NLPController
 from helpers.config import get_config
-from tqdm.auto import tqdm
 from models import responsesignal
 from tasks.data_indexing import index_data_content
 
@@ -132,7 +131,7 @@ async def search_index(request: Request, project_id: int, search_request: Search
     )
 
 @nlp_router.post("/index/answer/{project_id}")
-async def search_index(request: Request, project_id: int, search_request: SearchRequest):
+async def answer_index(request: Request, project_id: int, search_request: SearchRequest):
 
     project_model = await ProjectModel.create_instance(
         db_client=request.app.db_client

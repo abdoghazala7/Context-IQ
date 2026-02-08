@@ -27,4 +27,5 @@ class responsesignal(Enum):
     TASK_STATUS_FAILED="task_failed ❌"
     TASK_STATUS_PENDING="task_still_in_progress ⏳"
     TASK_STATUS_ERROR="task_status_check_error ❗"
+    TASK_NOT_FOUND="task_not_found — invalid or expired task_id ❌"
 
