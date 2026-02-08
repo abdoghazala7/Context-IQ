@@ -20,10 +20,19 @@ def push_after_process_task(self, prev_task_result):
     do_reset = prev_task_result.get("do_reset")
     
     async def get_total_count():
-         _, db_client, _, _, _, _, _, _ = await get_setup_utils()
-         chunk_model = await ChunkModel.create_instance(db_client=db_client)
-         count = await chunk_model.get_total_chunks_count(project_id=project_id)
-         return count
+         db_engine = None
+         vectordb_client = None
+         try:
+             (db_engine, db_client, _, _,
+              _, _, vectordb_client, _) = await get_setup_utils()
+             chunk_model = await ChunkModel.create_instance(db_client=db_client)
+             count = await chunk_model.get_total_chunks_count(project_id=project_id)
+             return count
+         finally:
+             if db_engine:
+                 await db_engine.dispose()
+             if vectordb_client:
+                 await vectordb_client.disconnect()
 
     total_chunks_count = asyncio.run(get_total_count())
 

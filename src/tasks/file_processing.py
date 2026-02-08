@@ -114,20 +114,13 @@ async def _process_project_files(task_instance, project_id: int,
         project_files_ids = {}
         
         if file_id:
-            asset_record = await asset_model.get_asset_record(
-                asset_project_id=project.project_id,
-                asset_name=file_id
+            asset_record = await asset_model.get_asset_by_id(
+                asset_id=file_id,
+                asset_project_id=project.project_id
             )
                 
             if asset_record is None:
                 error_signal = responsesignal.FILE_ID_ERROR.value
-                
-                task_instance.update_state(
-                    state="FAILURE",
-                    meta={
-                        "signal": error_signal,
-                    }
-                )
                 
                 # Update task status to FAILURE
                 await idempotency_manager.update_task_status(
@@ -136,7 +129,7 @@ async def _process_project_files(task_instance, project_id: int,
                     result={"signal": error_signal}
                 )
                 
-                raise Exception(f"No assets for file: {file_id}")
+                raise Exception(f"No assets for file_id: {file_id}")
 
             project_files_ids = {
                 asset_record.asset_id: asset_record.asset_name
@@ -157,13 +150,6 @@ async def _process_project_files(task_instance, project_id: int,
 
         if len(project_files_ids) == 0:
             error_signal = responsesignal.NO_FILES_ERROR.value
-
-            task_instance.update_state(
-                state="FAILURE",
-                meta={
-                    "signal": error_signal,
-                }
-            )
             
             # Update task status to FAILURE
             await idempotency_manager.update_task_status(
@@ -233,11 +219,6 @@ async def _process_project_files(task_instance, project_id: int,
                     "project_id": project_id,
                     "do_reset": do_reset
                 }
-
-        task_instance.update_state(
-            state="SUCCESS",
-            meta=success_result
-        )
         
         await idempotency_manager.update_task_status(
             execution_id=task_record.execution_id,

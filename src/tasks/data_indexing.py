@@ -83,11 +83,6 @@ async def _index_data_content(task_instance, project_id: int, do_reset: int, tot
 
         if not project:
             error_signal = responsesignal.PROJECT_NOT_FOUND_ERROR.value
-            
-            task_instance.update_state(
-                state="FAILURE",
-                meta={"signal": error_signal}
-            )
 
             await idempotency_manager.update_task_status(
                 execution_id=task_record.execution_id,
@@ -141,11 +136,6 @@ async def _index_data_content(task_instance, project_id: int, do_reset: int, tot
             if not is_inserted:
                 error_signal = responsesignal.INSERT_INTO_VECTORDB_ERROR.value
                 
-                task_instance.update_state(
-                    state="FAILURE",
-                    meta={"signal": error_signal}
-                )
-                
                 await idempotency_manager.update_task_status(
                     execution_id=task_record.execution_id,
                     status='FAILURE',
@@ -161,11 +151,6 @@ async def _index_data_content(task_instance, project_id: int, do_reset: int, tot
             "signal": responsesignal.INSERT_INTO_VECTORDB_SUCCESS.value,
             "inserted_items_count": inserted_items_count
         }
-
-        task_instance.update_state(
-                state="SUCCESS",
-                meta=success_result
-            )
         
         await idempotency_manager.update_task_status(
             execution_id=task_record.execution_id,
