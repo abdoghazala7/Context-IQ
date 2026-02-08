@@ -64,6 +64,9 @@ celery_app.conf.update(
         settings.CELERY_TASK_SERIALIZER
     ],
 
+    # Explicitly set result backend (belt-and-suspenders with constructor arg)
+    result_backend=settings.CELERY_RESULT_BACKEND,
+
     # Task safety - Late acknowledgment prevents task loss on worker crash
     task_acks_late=settings.CELERY_TASK_ACKS_LATE,
 
