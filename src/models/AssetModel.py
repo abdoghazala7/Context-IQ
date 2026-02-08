@@ -45,6 +45,17 @@ class AssetModel(BaseDataModel):
             result = await session.execute(stmt)
             record = result.scalar_one_or_none()
         return record
+
+    async def get_asset_by_id(self, asset_id: int, asset_project_id: int):
+        """Look up an asset by its integer asset_id and project_id."""
+        async with self.db_client() as session:
+            stmt = select(Asset).where(
+                Asset.asset_id == asset_id,
+                Asset.asset_project_id == asset_project_id
+            )
+            result = await session.execute(stmt)
+            record = result.scalar_one_or_none()
+        return record
     
     # For Idempotency checks
     async def get_project_files_count(self, project_id: int) -> int:
