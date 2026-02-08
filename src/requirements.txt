@@ -8,6 +8,7 @@ langchain==1.2.0
 langchain-community==0.4.1
 langchain-text-splitters==1.1.0
 PyMuPDF==1.26.7
+docx2txt==0.8
 openai==2.14.0
 cohere==5.20.1
 groq==1.0.0

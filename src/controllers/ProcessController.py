@@ -4,6 +4,7 @@ from .ProjectController import projectController
 from models import processingenum
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_community.document_loaders import Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
@@ -31,6 +32,10 @@ class processcontroller(basecontroller):
         loader = PyMuPDFLoader(file_path)
         return loader.load()
 
+    def load_docx_file(self, file_path: str):
+        loader = Docx2txtLoader(file_path)
+        return loader.load()
+
     def get_file_content(self, file_id: str):
         file_path = self.get_file_path(file_id)
         if not os.path.exists(file_path):
@@ -42,6 +47,8 @@ class processcontroller(basecontroller):
             return self.load_txt_file(file_path)
         elif file_extension == processingenum.PDF.value:
             return self.load_pdf_file(file_path)
+        elif file_extension == processingenum.DOCX.value:
+            return self.load_docx_file(file_path)
         else:
             return None
 

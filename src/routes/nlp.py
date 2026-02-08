@@ -160,7 +160,8 @@ async def answer_index(request: Request, project_id: int, search_request: Search
         project=project,
         query=search_request.text,
         limit=search_request.limit,
-        score_threshold=search_request.score_threshold
+        score_threshold=search_request.score_threshold,
+        primary_lang=search_request.primary_lang
     )
 
     if not answer:

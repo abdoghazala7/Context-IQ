@@ -11,6 +11,20 @@ class SearchRequest(BaseModel):
     text: str
     limit: Optional[int] = 5
     score_threshold: Optional[float] = None
+    primary_lang: Optional[str] = None
+
+    @field_validator('primary_lang')
+    @classmethod
+    def validate_primary_lang(cls, v: str) -> str:
+        if v is not None:
+            supported_langs = ['en', 'ar']
+            if v.strip().lower() not in supported_langs:
+                raise ValueError(
+                    f'Unsupported language: {v}. '
+                    f'Supported languages are: {", ".join(supported_langs)}'
+                )
+            return v.strip().lower()
+        return v
 
     @field_validator('text')
     @classmethod

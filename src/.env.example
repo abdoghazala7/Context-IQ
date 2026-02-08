@@ -1,6 +1,6 @@
 APP_NAME="Context-IQ"
 
-ALLOWED_EXTENSIONS = ["text/plain", "application/pdf"]
+ALLOWED_EXTENSIONS = ["text/plain", "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
 MAX_FILE_SIZE = 10485760  # 10MB
 FILE_DEFAULT_CHUNK_SIZE = 512000 # 512KB
 
@@ -36,7 +36,7 @@ VECTOR_DB_DISTANCE_METHOD="cosine"
 VECTOR_DB_PGVEC_INDEX_THRESHOLD = 1000
 
 # ========================= Template Configs =========================
-PRIMARY_LANG = "ar"
+PRIMARY_LANG = "en"
 DEFAULT_LANG = "en"
 
 # ========================= Celery Task Queue Config =========================

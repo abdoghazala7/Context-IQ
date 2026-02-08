@@ -121,9 +121,13 @@ class NLPController(basecontroller):
 
         return results
     
-    async def answer_rag_question(self, project: Project, query: str, limit: int = 10, score_threshold: Optional[float] = None):
+    async def answer_rag_question(self, project: Project, query: str, limit: int = 10, score_threshold: Optional[float] = None, primary_lang: Optional[str] = None):
         
         answer, full_prompt, chat_history = None, None, None
+
+        # Set the template language if provided by the user
+        if primary_lang:
+            self.template_parser.set_language(primary_lang)
 
         # step1: retrieve related documents
         retrieved_documents = await self.search_vector_db_collection(
