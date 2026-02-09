@@ -97,7 +97,9 @@ async def _process_project_files(task_instance, project_id: int,
         )
 
         project_model = await ProjectModel.create_instance(db_client=db_client)
-        project = await project_model.get_project_or_create_one(project_id=project_id)
+        # The project was already authenticated at the API layer.
+        # Here we just look it up by ID for the background task.
+        project = await project_model.get_project_by_id(project_id=project_id)
 
         asset_model = await AssetModel.create_instance(
             db_client=db_client

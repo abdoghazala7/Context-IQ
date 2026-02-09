@@ -28,4 +28,6 @@ class responsesignal(Enum):
     TASK_STATUS_PENDING="task_still_in_progress ⏳"
     TASK_STATUS_ERROR="task_status_check_error ❗"
     TASK_NOT_FOUND="task_not_found — invalid or expired task_id ❌"
+    PROJECT_ACCESS_DENIED="access_denied — you do not own this project ❌"
+    USER_CREATED_SUCCESS="user_registered_successfully ✅"
 

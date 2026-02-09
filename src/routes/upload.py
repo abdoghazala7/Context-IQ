@@ -10,6 +10,7 @@ from models.AssetModel import AssetModel
 from models.enums.AssetTypeEnum import AssetTypeEnum
 from tasks.file_processing import process_project_files
 from tasks.process_workflow import process_and_push_workflow
+from routes.auth import get_current_user
 import os
 import aiofiles
 import logging
@@ -28,14 +29,19 @@ async def upload_file(
     request: Request,
     project_id : int,
     file: UploadFile = File(...),
-    config: Config = Depends(get_config)
+    config: Config = Depends(get_config),
+    current_user = Depends(get_current_user)
 ):
     """
     Endpoint to upload a file for a specific project.
+    Requires authentication via X-API-Key header.
     """
 
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
-    project = await project_model.get_project_or_create_one(project_id=project_id)
+    project = await project_model.get_project_or_create_one(
+        project_id=project_id,
+        user_id=current_user.user_id
+    )
 
     # validate the file properties
     upload_controller = uploadcontroller()
@@ -93,8 +99,24 @@ async def upload_file(
 async def process_file(
     request: Request,
     project_id: int,
-    process_request: processrequest
+    process_request: processrequest,
+    current_user = Depends(get_current_user)
 ):
+
+    # Verify that the project belongs to this user
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project = await project_model.get_user_project(
+        project_id=project_id,
+        user_id=current_user.user_id
+    )
+
+    if not project:
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={
+                "signal": responsesignal.PROJECT_ACCESS_DENIED.value
+            }
+        )
 
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size
@@ -123,7 +145,27 @@ async def process_file(
     )
     
 @Data_router.post("/process-and-push/{project_id}")
-async def process_and_push_endpoint(request: Request, project_id: int, process_request: processrequest):
+async def process_and_push_endpoint(
+    request: Request,
+    project_id: int,
+    process_request: processrequest,
+    current_user = Depends(get_current_user)
+):
+
+    # Verify that the project belongs to this user
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project = await project_model.get_user_project(
+        project_id=project_id,
+        user_id=current_user.user_id
+    )
+
+    if not project:
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={
+                "signal": responsesignal.PROJECT_ACCESS_DENIED.value
+            }
+        )
 
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size

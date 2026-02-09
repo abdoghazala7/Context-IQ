@@ -3,6 +3,7 @@ from routes.base import Base_router
 from routes.upload import Data_router
 from routes.nlp import nlp_router
 from routes.status import status_router
+from routes.user import user_router
 from helpers.config import Config
 from contextlib import asynccontextmanager
 from stores.llm import LLMProviderFactory
@@ -53,7 +54,17 @@ async def lifespan(app: FastAPI):
     await app.db_engine.dispose()
     await app.vectordb_client.disconnect()
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    title="Context-IQ API",
+    description="RAG (Retrieval Augmented Generation) API with user authentication",
+    version="1.0.0",
+    swagger_ui_parameters={
+        "persistAuthorization": True,
+    }
+)
+
+
 # Setup Prometheus metrics
 setup_metrics(app)
     
@@ -61,3 +72,4 @@ app.include_router(Base_router)
 app.include_router(Data_router)
 app.include_router(nlp_router)
 app.include_router(status_router)
+app.include_router(user_router)

@@ -79,7 +79,9 @@ async def _index_data_content(task_instance, project_id: int, do_reset: int, tot
         project_model = await ProjectModel.create_instance(db_client=db_client)
         chunk_model = await ChunkModel.create_instance(db_client=db_client)
 
-        project = await project_model.get_project_or_create_one(project_id=project_id)
+        # The project was already authenticated at the API layer.
+        # Here we just look it up by ID for the background task.
+        project = await project_model.get_project_by_id(project_id=project_id)
 
         if not project:
             error_signal = responsesignal.PROJECT_NOT_FOUND_ERROR.value
