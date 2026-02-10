@@ -28,13 +28,19 @@ Data_router = APIRouter(
 async def upload_file(
     request: Request,
     project_id : int,
-    file: UploadFile = File(...),
+    file: UploadFile = File(..., description="📄 Upload your file here. Supported formats: PDF (.pdf), Word (.doc, .docx), Text (.txt)"),
     config: Config = Depends(get_config),
     current_user = Depends(get_current_user)
 ):
     """
     Endpoint to upload a file for a specific project.
-    Requires authentication via X-API-Key header.
+    
+    **Supported File Types:**
+    - 📕 PDF files (.pdf)
+    - 📘 Word documents (.doc, .docx)
+    - 📄 Text files (.txt)
+    
+    **Note:** Requires authentication via X-API-Key header.
     """
 
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)

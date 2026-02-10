@@ -5,13 +5,19 @@ import logging
 
 logger = logging.getLogger('uvicorn.error')
 
-header_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
+header_scheme = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,
+    description="🔑 API Key for authentication. If you don't have an API Key, please call '/register' endpoint first to get your API Key."
+)
 
 async def get_current_user(
                             request: Request,
                             api_key: str = Depends(header_scheme)):
     """
     FastAPI dependency that authenticates a user via the X-API-Key header.
+    
+    ⚠️ Note: You must register first by calling the '/register' endpoint to obtain your API Key.
     
     Returns the authenticated User object.
     Raises HTTP 401 if the key is missing or invalid.
