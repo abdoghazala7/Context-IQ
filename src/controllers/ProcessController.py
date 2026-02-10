@@ -5,7 +5,10 @@ from models import processingenum
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import markdown
+from bs4 import BeautifulSoup
 
 
 class processcontroller(basecontroller):
@@ -36,6 +39,30 @@ class processcontroller(basecontroller):
         loader = Docx2txtLoader(file_path)
         return loader.load()
 
+    def load_md_file(self, file_path: str):
+        """
+        Load a Markdown file, converting it to structured plain text
+        while preserving semantic sections (headings, lists, code blocks).
+        """
+        with open(file_path, "r", encoding="utf-8") as f:
+            md_content = f.read()
+
+        # Convert Markdown to HTML with common extensions
+        html = markdown.markdown(
+            md_content,
+            extensions=["extra", "codehilite", "toc", "tables", "sane_lists"]
+        )
+
+        # Extract clean text from HTML, preserving structural whitespace
+        soup = BeautifulSoup(html, "lxml")
+        clean_text = soup.get_text(separator="\n", strip=True)
+
+        doc = Document(
+            page_content=clean_text,
+            metadata={"source": file_path, "format": "markdown"}
+        )
+        return [doc]
+
     def get_file_content(self, file_id: str):
         file_path = self.get_file_path(file_id)
         if not os.path.exists(file_path):
@@ -49,6 +76,8 @@ class processcontroller(basecontroller):
             return self.load_pdf_file(file_path)
         elif file_extension == processingenum.DOCX.value:
             return self.load_docx_file(file_path)
+        elif file_extension == processingenum.MD.value:
+            return self.load_md_file(file_path)
         else:
             return None
 

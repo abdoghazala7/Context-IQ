@@ -4,3 +4,4 @@ class processingenum(Enum):
     TXT = ".txt"
     PDF = ".pdf"
     DOCX = ".docx"
+    MD = ".md"

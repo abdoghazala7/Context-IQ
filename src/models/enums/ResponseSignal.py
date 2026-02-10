@@ -30,4 +30,9 @@ class responsesignal(Enum):
     TASK_NOT_FOUND="task_not_found — invalid or expired task_id ❌"
     PROJECT_ACCESS_DENIED="access_denied — you do not own this project ❌"
     USER_CREATED_SUCCESS="user_registered_successfully ✅"
+    URL_INGEST_SUCCESS="URL content ingested successfully ✅"
+    URL_INGEST_FAILED="URL content ingestion failed ❗"
+    URL_FETCH_FAILED="Failed to fetch content from URL ❌"
+    URL_INVALID="Invalid or unreachable URL ❌"
+    URL_NO_CONTENT="No extractable content found at URL ❌"
 

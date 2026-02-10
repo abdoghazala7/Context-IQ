@@ -15,16 +15,18 @@ class uploadcontroller(basecontroller):
         self.max_file_size = self.config.MAX_FILE_SIZE
 
     def validate_uploaded_file(self, file: UploadFile):
-        """
-        Validate the uploaded file based on allowed extensions and size.
-        """
-        if file.content_type not in self.allowed_extensions:
-            return False, responsesignal.FILE_TYPE_NOT_SUPPORTED.value
-
+        
         if file.size > self.max_file_size:
             return False, responsesignal.FILE_SIZE_EXCEEDED.value
 
-        return True, responsesignal.FILE_VALIDATED_SUCCESS.value
+        if file.content_type in self.allowed_extensions:
+            return True, responsesignal.FILE_VALIDATED_SUCCESS.value
+
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext == ".md" and file.content_type in ["application/octet-stream", "text/plain"]:
+            return True, responsesignal.FILE_VALIDATED_SUCCESS.value
+
+        return False, responsesignal.FILE_TYPE_NOT_SUPPORTED.value
     
     
     def generate_unique_filepath(self, orig_file_name: str, project_id: str):

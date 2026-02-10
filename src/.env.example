@@ -1,6 +1,6 @@
 APP_NAME="Context-IQ"
 
-ALLOWED_EXTENSIONS = ["text/plain", "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+ALLOWED_EXTENSIONS = ["text/plain", "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/markdown"]
 MAX_FILE_SIZE = 10485760  # 10MB
 FILE_DEFAULT_CHUNK_SIZE = 512000 # 512KB
 

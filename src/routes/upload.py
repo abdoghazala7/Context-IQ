@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status, Request
-from controllers import uploadcontroller
+from controllers import uploadcontroller, urlcontroller
 from fastapi.responses import JSONResponse
 from helpers.config import Config , get_config
-from routes.schemes import processrequest
+from routes.schemes import processrequest, urlingestrequest
 from models.ProjectModel import ProjectModel
 from models.enums.ResponseSignal import responsesignal
 from models.db_schemes import Asset
@@ -21,14 +21,14 @@ logger = logging.getLogger('uvicorn.error')
 
 Data_router = APIRouter(
     prefix="/api/v1",  
-    tags=["File Upload"]
+    tags=["File Upload & Processing"]
 )
 
 @Data_router.post("/upload/{project_id}")
 async def upload_file(
     request: Request,
     project_id : int,
-    file: UploadFile = File(..., description="📄 Upload your file here. Supported formats: PDF (.pdf), Word (.doc, .docx), Text (.txt)"),
+    file: UploadFile = File(..., description="📄 Upload your file here. Supported formats: PDF (.pdf), Word (.doc, .docx), Text (.txt), Markdown (.md)"),
     config: Config = Depends(get_config),
     current_user = Depends(get_current_user)
 ):
@@ -39,6 +39,7 @@ async def upload_file(
     - 📕 PDF files (.pdf)
     - 📘 Word documents (.doc, .docx)
     - 📄 Text files (.txt)
+    - 📝 Markdown files (.md)
     
     **Note:** Requires authentication via X-API-Key header.
     """
@@ -98,6 +99,84 @@ async def upload_file(
                 "file_id": str(asset_record.asset_id)
             }
         )
+
+
+@Data_router.post("/upload/ingest-url/{project_id}")
+async def ingest_url(
+    request: Request,
+    project_id: int,
+    ingest_request: urlingestrequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Endpoint to ingest content from a web URL into a project.
+
+    The URL is fetched, its text content is extracted and cleaned,
+    then stored as a project asset ready for processing.
+
+    **Note:** Requires authentication via X-API-Key header.
+    """
+
+    # Verify project ownership
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project = await project_model.get_project_or_create_one(
+        project_id=project_id,
+        user_id=current_user.user_id
+    )
+
+    url_ctrl = urlcontroller()
+
+    # Fetch URL content
+    html = await url_ctrl.fetch_url_content(ingest_request.url)
+    if html is None:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"signal": responsesignal.URL_FETCH_FAILED.value}
+        )
+
+    # Extract clean text
+    doc = url_ctrl.extract_clean_text(html=html, source_url=ingest_request.url)
+    if doc is None:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"signal": responsesignal.URL_NO_CONTENT.value}
+        )
+
+    # Save extracted content to disk
+    try:
+        file_path, file_id = await url_ctrl.save_url_content_as_file(
+            text=doc.page_content,
+            url=ingest_request.url,
+            project_id=project_id
+        )
+    except Exception as e:
+        logger.error(f"Error saving URL content to file: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"signal": responsesignal.URL_INGEST_FAILED.value}
+        )
+
+    # Create asset record
+    asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
+    asset_resource = Asset(
+        asset_project_id=project.project_id,
+        asset_type=AssetTypeEnum.URL.value,
+        asset_name=file_id,
+        asset_size=os.path.getsize(file_path),
+        asset_config={
+            "source_url": ingest_request.url,
+            "title": doc.metadata.get("title", ""),
+        }
+    )
+    asset_record = await asset_model.create_asset(asset=asset_resource)
+
+    return JSONResponse(
+            content={
+                "signal": responsesignal.URL_INGEST_SUCCESS.value,
+                "file_id": str(asset_record.asset_id)
+            }
+        )
+
 
 
 

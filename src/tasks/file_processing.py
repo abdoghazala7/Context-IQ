@@ -145,9 +145,15 @@ async def _process_project_files(task_instance, project_id: int,
             asset_type=AssetTypeEnum.FILE.value,
                                             )
 
+            # Also include URL-type assets (stored as .txt files on disk)
+            project_url_assets = await asset_model.get_all_project_assets(
+                asset_project_id=project.project_id,
+                asset_type=AssetTypeEnum.URL.value,
+            )
+
             project_files_ids = {
                 record.asset_id: record.asset_name
-                for record in project_files
+                for record in list(project_files) + list(project_url_assets)
             }
 
         if len(project_files_ids) == 0:
