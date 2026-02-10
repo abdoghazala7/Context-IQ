@@ -127,11 +127,11 @@ async def ingest_url(
     url_ctrl = urlcontroller()
 
     # Fetch URL content
-    html = await url_ctrl.fetch_url_content(ingest_request.url)
+    html, signal = await url_ctrl.fetch_url_content(ingest_request.url)
     if html is None:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"signal": responsesignal.URL_FETCH_FAILED.value}
+            content={"signal": signal}
         )
 
     # Extract clean text
@@ -149,6 +149,13 @@ async def ingest_url(
             url=ingest_request.url,
             project_id=project_id
         )
+        
+    except ValueError as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"signal": responsesignal.FILE_SIZE_EXCEEDED.value}
+        )
+    
     except Exception as e:
         logger.error(f"Error saving URL content to file: {e}")
         return JSONResponse(

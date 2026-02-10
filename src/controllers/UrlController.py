@@ -36,6 +36,9 @@ class urlcontroller(basecontroller):
 
     def __init__(self):
         super().__init__()
+        
+        self.max_file_size = self.config.MAX_FILE_SIZE
+        
 
     # ------------------------------------------------------------------
     # Public helpers
@@ -51,10 +54,10 @@ class urlcontroller(basecontroller):
         )
         return bool(pattern.match(url))
 
-    async def fetch_url_content(self, url: str) -> str | None:
+    async def fetch_url_content(self, url: str) -> tuple[str | None, str | None]:
         """
         Fetch the raw HTML content of a URL using httpx (async).
-        Returns None on failure.
+        Returns (html_content, None) on success, (None, error_signal) on failure.
         """
         try:
             async with httpx.AsyncClient(
@@ -67,12 +70,27 @@ class urlcontroller(basecontroller):
                     )
                 },
             ) as client:
-                response = await client.get(url)
-                response.raise_for_status()
-                return response.text
+                async with client.stream("GET", url) as response:
+                    response.raise_for_status()
+                    
+                    content = []
+                    current_size = 0
+                    
+                    async for chunk in response.aiter_text():
+                        chunk_size = len(chunk.encode('utf-8')) 
+                        current_size += chunk_size
+                        
+                        if current_size > self.max_file_size:
+                            logger.warning(f"URL {url} exceeded max size limit of {self.max_file_size} bytes.")
+                            return None , responsesignal.FILE_SIZE_EXCEEDED.value
+                        
+                        content.append(chunk)
+                    
+                    return "".join(content), None
+
         except Exception as e:
             logger.error(f"Failed to fetch URL {url}: {e}")
-            return None
+            return None, responsesignal.URL_FETCH_FAILED.value
 
     def extract_clean_text(self, html: str, source_url: str) -> Document | None:
         """
@@ -130,6 +148,12 @@ class urlcontroller(basecontroller):
         Returns:
             (file_path, file_id)
         """
+        
+        # Check if text size exceeds the allowed limit
+        text_size = len(text.encode("utf-8"))
+        if text_size > self.config.MAX_FILE_SIZE:
+            raise ValueError(responsesignal.FILE_SIZE_EXCEEDED.value)
+
         # Derive a human-readable slug from the URL
         slug = re.sub(r"https?://", "", url)
         slug = re.sub(r"[^\w]", "_", slug)[:80]
