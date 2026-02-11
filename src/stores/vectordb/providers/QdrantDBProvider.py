@@ -240,6 +240,7 @@ class QdrantDBProvider(VectorDBInterface):
             RetrievedDocument(**{
                 "score": result.score,
                 "text": result.payload["text"],
+                "metadata": result.payload.get("metadata") or {},
             })
             for result in results
         ]

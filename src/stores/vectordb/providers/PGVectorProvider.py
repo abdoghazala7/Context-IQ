@@ -390,7 +390,8 @@ class PGVectorProvider(VectorDBInterface):
                 # Using cosine similarity: 1 - cosine_distance
                 base_query = (
                     f'SELECT {PgVectorTableSchemeEnums.TEXT.value} as text, '
-                    f'1 - ({PgVectorTableSchemeEnums.VECTOR.value} <=> :vector) as score '
+                    f'1 - ({PgVectorTableSchemeEnums.VECTOR.value} <=> :vector) as score, '
+                    f'{PgVectorTableSchemeEnums.METADATA.value} as metadata '
                     f'FROM "{collection_name}"'
                 )
                 
@@ -422,7 +423,8 @@ class PGVectorProvider(VectorDBInterface):
                 return [
                     RetrievedDocument(
                         text=record.text,
-                        score=float(record.score)
+                        score=float(record.score),
+                        metadata=record.metadata if record.metadata else {}
                     )
                     for record in records
                 ]

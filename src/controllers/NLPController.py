@@ -2,6 +2,7 @@ from .BaseController import basecontroller
 from models.db_schemes import Project, DataChunk
 from stores.llm.LLMEnums import DocumentTypeEnum
 from typing import List, Optional, Union
+import os
 import json
 import logging
 
@@ -16,6 +17,66 @@ class NLPController(basecontroller):
         self.template_parser = template_parser
         self.embedding_client = embedding_client
         self.logger = logging.getLogger(__name__)
+
+
+    # ------------------------------------------------------------------
+    # Granular source-label builder for RAG prompts, based on chunk metadata.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _build_source_label(metadata: dict) -> str:
+        """
+        Builds a human-readable source label from chunk metadata.
+        It cleans the filename (removes UUID prefix) and formats specific details
+        like Page numbers (PDF) or Sheet/Row ranges (Excel/CSV).
+        """
+        if not metadata:
+            return "unknown"
+
+        source_path = metadata.get("source", "")
+        if not source_path:
+            return "unknown"
+
+        raw_filename = os.path.basename(source_path)
+
+        # Clean Filename
+        if "_" in raw_filename:
+            try:
+                clean_filename = raw_filename.split("_", 1)[1]
+            except IndexError:
+                clean_filename = raw_filename
+        else:
+            clean_filename = raw_filename
+        
+        if not clean_filename:
+            clean_filename = raw_filename
+
+        # --- PDF Logic: Handle Page Numbers ---
+        if "page" in metadata:
+            try:
+                # Convert 0-indexed page (code) to 1-indexed page (human)
+                page_display = int(metadata["page"]) + 1 
+                return f"{clean_filename} (Page: {page_display})"
+            except (ValueError, TypeError):
+                # Fallback to filename if page data is corrupted
+                return clean_filename
+
+        # --- Structured Data Logic: Handle Excel/CSV ---
+        if metadata.get("format") == "structured_data":
+            parts = []
+            
+            # Check if sheet_name exists and is not empty/None
+            if metadata.get("sheet_name"): 
+                parts.append(f"Sheet: {metadata['sheet_name']}")
+            
+            # Check if row_range exists and is not empty/None
+            if metadata.get("row_range"):
+                parts.append(f"Rows: {metadata['row_range']}")
+            
+            if parts:
+                return f"{clean_filename} ({' | '.join(parts)})"
+
+        # --- Default: Return clean filename only ---
+        return clean_filename
 
     def create_collection_name(self, project_id: str):
         return f"collection_{self.vectordb_client.default_vector_size}_{project_id}".strip()
@@ -147,6 +208,7 @@ class NLPController(basecontroller):
             self.template_parser.get("rag", "document_prompt", {
                     "doc_num": idx + 1,
                     "chunk_text": self.generation_client.process_text(doc.text),
+                    "source": self._build_source_label(doc.metadata),
             })
             for idx, doc in enumerate(retrieved_documents)
         ])

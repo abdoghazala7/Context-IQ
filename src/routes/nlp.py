@@ -154,7 +154,7 @@ async def search_index(
     return JSONResponse(
         content={
             "signal": responsesignal.VECTORDB_SEARCH_SUCCESS.value,
-            "results": [ result.dict()  for result in results ]
+            "results": [ result.model_dump()  for result in results ]
         }
     )
 
