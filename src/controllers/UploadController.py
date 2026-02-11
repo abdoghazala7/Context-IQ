@@ -14,6 +14,26 @@ class uploadcontroller(basecontroller):
         self.allowed_extensions = self.config.ALLOWED_EXTENSIONS
         self.max_file_size = self.config.MAX_FILE_SIZE
 
+        # MIME types that browsers/clients may send for structured data files.
+        # These vary across OS and client, so we accept them via extension fallback.
+        self._structured_data_mime_map = {
+            ".csv": [
+                "text/csv",
+                "application/csv",
+                "application/vnd.ms-excel",   # Windows sometimes sends this for CSV
+                "text/plain",
+                "application/octet-stream",
+            ],
+            ".xlsx": [
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/octet-stream",
+            ],
+            ".xls": [
+                "application/vnd.ms-excel",
+                "application/octet-stream",
+            ],
+        }
+
     def validate_uploaded_file(self, file: UploadFile):
         
         if file.size > self.max_file_size:
@@ -23,8 +43,17 @@ class uploadcontroller(basecontroller):
             return True, responsesignal.FILE_VALIDATED_SUCCESS.value
 
         file_ext = os.path.splitext(file.filename)[1].lower()
+
+        # Markdown fallback (existing behaviour)
         if file_ext == ".md" and file.content_type in ["application/octet-stream", "text/plain"]:
             return True, responsesignal.FILE_VALIDATED_SUCCESS.value
+
+        # Structured data (CSV / Excel) fallback: accept if the extension is
+        # known AND the reported MIME type is one of the common variants.
+        if file_ext in self._structured_data_mime_map:
+            accepted_mimes = self._structured_data_mime_map[file_ext]
+            if file.content_type in accepted_mimes:
+                return True, responsesignal.FILE_VALIDATED_SUCCESS.value
 
         return False, responsesignal.FILE_TYPE_NOT_SUPPORTED.value
     

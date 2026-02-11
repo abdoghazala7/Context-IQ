@@ -151,9 +151,15 @@ async def _process_project_files(task_instance, project_id: int,
                 asset_type=AssetTypeEnum.URL.value,
             )
 
+            # Include structured-data assets (CSV / Excel files)
+            project_structured_assets = await asset_model.get_all_project_assets(
+                asset_project_id=project.project_id,
+                asset_type=AssetTypeEnum.STRUCTURED_DATA.value,
+            )
+
             project_files_ids = {
                 record.asset_id: record.asset_name
-                for record in list(project_files) + list(project_url_assets)
+                for record in list(project_files) + list(project_url_assets) + list(project_structured_assets)
             }
 
         if len(project_files_ids) == 0:

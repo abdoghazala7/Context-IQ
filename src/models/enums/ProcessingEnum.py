@@ -5,3 +5,6 @@ class processingenum(Enum):
     PDF = ".pdf"
     DOCX = ".docx"
     MD = ".md"
+    CSV = ".csv"
+    XLSX = ".xlsx"
+    XLS = ".xls"

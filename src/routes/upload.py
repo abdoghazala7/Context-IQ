@@ -28,7 +28,7 @@ Data_router = APIRouter(
 async def upload_file(
     request: Request,
     project_id : int,
-    file: UploadFile = File(..., description="📄 Upload your file here. Supported formats: PDF (.pdf), Word (.doc, .docx), Text (.txt), Markdown (.md)"),
+    file: UploadFile = File(..., description="📄 Upload your file here. Supported formats: PDF (.pdf), Word (.docx), Text (.txt), Markdown (.md), CSV (.csv), Excel (.xlsx, .xls)"),
     config: Config = Depends(get_config),
     current_user = Depends(get_current_user)
 ):
@@ -40,6 +40,8 @@ async def upload_file(
     - 📘 Word documents (.doc, .docx)
     - 📄 Text files (.txt)
     - 📝 Markdown files (.md)
+    - 📊 CSV files (.csv)
+    - 📈 Excel spreadsheets (.xlsx, .xls)
     
     **Note:** Requires authentication via X-API-Key header.
     """
@@ -84,9 +86,17 @@ async def upload_file(
 
     # create asset record in the database
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
+
+    # Determine asset type based on file extension
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext in (".csv", ".xlsx", ".xls"):
+        asset_type = AssetTypeEnum.STRUCTURED_DATA.value
+    else:
+        asset_type = AssetTypeEnum.FILE.value
+
     asset_resource = Asset(
         asset_project_id=project.project_id,
-        asset_type=AssetTypeEnum.FILE.value,
+        asset_type=asset_type,
         asset_name=file_id,
         asset_size=os.path.getsize(file_path)
     )

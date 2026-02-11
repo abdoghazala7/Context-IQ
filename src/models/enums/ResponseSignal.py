@@ -35,4 +35,6 @@ class responsesignal(Enum):
     URL_FETCH_FAILED="Failed to fetch content from URL ❌"
     URL_INVALID="Invalid or unreachable URL ❌"
     URL_NO_CONTENT="No extractable content found at URL ❌"
+    STRUCTURED_DATA_EMPTY="Structured data file contains no usable rows ❌"
+    STRUCTURED_DATA_PARSE_ERROR="Failed to parse structured data file ❌"
 
