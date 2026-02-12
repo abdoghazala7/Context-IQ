@@ -142,8 +142,8 @@ The system never blocks the API thread for heavy operations. Document processing
 API Request → Celery Task 1 (Parse & Chunk) → Celery Task 2 (Embed & Index) → Result
 ```
 
-- **File Processing** (`process_project_files`): Parses uploaded files (PDF, DOCX, TXT, MD, CSV, XLSX), splits content into semantically meaningful chunks, and stores them in PostgreSQL.
-- **Data Indexing** (`index_data_content`): Generates embedding vectors (via OpenAI, Cohere, or Groq), creates vector collections, and performs batched insertions.
+- **File Processing** (`process_project_files`): Parses uploaded files (PDF, DOCX, TXT, MD, CSV, XLSX), splits content into semantically meaningful chunks.
+- **Data Indexing** (`index_data_content`): Generates embedding vectors (via OpenAI, Cohere, or Groq), creates vector collections, performs batched insertions, and stores them in PostgreSQL.
 - **Workflow Orchestration** (`process_and_push_workflow`): Chains both tasks using Celery's `chain()` primitive, ensuring indexing only begins after successful processing.
 
 All tasks feature **automatic retries** (3 attempts, 60s backoff) and **progress tracking** via `tqdm`.
