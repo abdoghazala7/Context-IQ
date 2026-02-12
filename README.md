@@ -523,8 +523,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 <div align="center">
 
-**Built with precision by [Abdelrahman Ghazala](https://github.com/abdoghazala7)**
+**Built with precision by [Abdo Ghazala](https://github.com/abdoghazala7)**
 
-*Architected for scale. Engineered for production. Designed to impress.*
 
 </div>
