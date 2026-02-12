@@ -4,6 +4,10 @@
 
 ### Enterprise-Grade RAG System with Async Processing, Granular Citations & Full Observability
 
+<br />
+<img src="src/assets/architecture_diagram.png" alt="Context-IQ Architecture" width="100%" style="border-radius: 10px;">
+<br />
+
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Celery](https://img.shields.io/badge/Celery-5.4-37814A?style=for-the-badge&logo=celery&logoColor=white)](https://docs.celeryq.dev)
