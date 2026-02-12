@@ -284,7 +284,7 @@ curl -H "X-API-Key: your-api-key" http://localhost:8000/api/v1/
 # 1. Register a user
 curl -X POST http://localhost:8000/api/v1/user/register \
   -H "Content-Type: application/json" \
-  -d '{"username": "demo", "password": "securepassword"}'
+  -d '{"username": "ghazala"}.'
 
 # 2. Upload a document
 curl -X POST http://localhost:8000/api/v1/upload/1 \
