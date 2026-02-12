@@ -206,6 +206,17 @@ RAG system prompts are fully localized. The system ships with **English** and **
 
 ---
 
+## ☁️ Live Demo Access
+
+Want to see **Context-IQ** in action without setting up the full Docker infrastructure locally?
+
+I maintain a fully configured **GitHub Codespace** environment for this project. Since this is a resource-intensive microservices architecture, the live environment is spun up on demand.
+
+> **Interested in a test drive?**
+> Please **[Contact Me via LinkedIn](https://www.linkedin.com/in/abdo-ghazala/)**, and I will provision a temporary public URL for you to explore the API, dashboards, and RAG pipeline interactively.
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Core Application
