@@ -60,7 +60,11 @@ async def get_task_status(task_id: str):
 
         if task_status == "SUCCESS":
             try:
-                response["result"] = task_result.result
+                result = task_result.result
+                # Strip internal fields before returning to user
+                if isinstance(result, dict):
+                    result = {k: v for k, v in result.items() if not k.startswith("_")}
+                response["result"] = result
             except Exception:
                 response["result"] = None
             response["signal"] = responsesignal.TASK_STATUS_SUCCESS.value

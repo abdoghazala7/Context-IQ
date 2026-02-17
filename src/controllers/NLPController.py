@@ -82,11 +82,11 @@ class NLPController(basecontroller):
         return f"collection_{self.vectordb_client.default_vector_size}_{project_id}".strip()
     
     async def reset_vector_db_collection(self, project: Project):
-        collection_name = self.create_collection_name(project_id=project.project_id)
+        collection_name = self.create_collection_name(project_id=project.id)
         return await self.vectordb_client.delete_collection(collection_name=collection_name)
     
     async def get_vector_db_collection_info(self, project: Project):
-        collection_name = self.create_collection_name(project_id=project.project_id)
+        collection_name = self.create_collection_name(project_id=project.id)
         collection_info = await self.vectordb_client.get_collection_info(collection_name=collection_name)
         # Convert CollectionInfo object to dictionary for JSON serialization
         if isinstance(collection_info, dict):
@@ -98,7 +98,7 @@ class NLPController(basecontroller):
                                    do_reset: bool = False):
         
         # step1: get collection name
-        collection_name = self.create_collection_name(project_id=project.project_id)
+        collection_name = self.create_collection_name(project_id=project.id)
 
         # step2: manage items
         texts = [ self.generation_client.process_text(c.chunk_text) for c in chunks ]
@@ -153,7 +153,7 @@ class NLPController(basecontroller):
         query_vector = None
 
         # step1: get collection name
-        collection_name = self.create_collection_name(project_id=project.project_id)
+        collection_name = self.create_collection_name(project_id=project.id)
 
         # step2: get text embedding vector
         processed_text = self.generation_client.process_text(text)

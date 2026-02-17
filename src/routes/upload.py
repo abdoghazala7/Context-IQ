@@ -65,7 +65,7 @@ async def upload_file(
     
     file_path, file_id = upload_controller.generate_unique_filepath(
         orig_file_name=file.filename,
-        project_id=project_id
+        project_id=project.id
     )
 
     try:
@@ -95,7 +95,7 @@ async def upload_file(
         asset_type = AssetTypeEnum.FILE.value
 
     asset_resource = Asset(
-        asset_project_id=project.project_id,
+        asset_project_id=project.id,
         asset_type=asset_type,
         asset_name=file_id,
         asset_size=os.path.getsize(file_path)
@@ -157,7 +157,7 @@ async def ingest_url(
         file_path, file_id = await url_ctrl.save_url_content_as_file(
             text=doc.page_content,
             url=ingest_request.url,
-            project_id=project_id
+            project_id=project.id
         )
         
     except ValueError as e:
@@ -176,7 +176,7 @@ async def ingest_url(
     # Create asset record
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
     asset_resource = Asset(
-        asset_project_id=project.project_id,
+        asset_project_id=project.id,
         asset_type=AssetTypeEnum.URL.value,
         asset_name=file_id,
         asset_size=os.path.getsize(file_path),
@@ -228,10 +228,10 @@ async def process_file(
     
     if process_request.file_id is None:
         asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
-        files_state_version = await asset_model.get_project_files_count(project_id=project_id)
+        files_state_version = await asset_model.get_project_files_count(project_id=project.id)
     
     task = process_project_files.delay(
-        project_id=project_id,
+        project_id=project.id,
         file_id=process_request.file_id,
         chunk_size=chunk_size,
         overlap_size=overlap_size,
@@ -277,10 +277,10 @@ async def process_and_push_endpoint(
     
     if process_request.file_id is None:
         asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
-        files_state_version = await asset_model.get_project_files_count(project_id=project_id)
+        files_state_version = await asset_model.get_project_files_count(project_id=project.id)
 
     workflow_task = process_and_push_workflow.delay(
-        project_id=project_id,
+        project_id=project.id,
         file_id=process_request.file_id,
         chunk_size=chunk_size,
         overlap_size=overlap_size,

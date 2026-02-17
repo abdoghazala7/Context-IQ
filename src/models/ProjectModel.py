@@ -2,6 +2,7 @@ from .BaseDataModel import BaseDataModel
 from .db_schemes import Project
 from .enums.DataBaseEnum import DataBaseEnum
 from sqlalchemy.future import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 import logging
 
@@ -28,8 +29,8 @@ class ProjectModel(BaseDataModel):
 
         return project
 
-    async def get_project_or_create_one(self, project_id: str, user_id: int):
-        """Get a project by ID for a specific user, or create one if it doesn't exist."""
+    async def get_project_or_create_one(self, project_id: int, user_id: int):
+        """Get a project by project_id for a specific user, or create one if it doesn't exist."""
         async with self.db_client() as session:
             async with session.begin():
                 query = select(Project).where(
@@ -38,18 +39,32 @@ class ProjectModel(BaseDataModel):
                 )
                 result = await session.execute(query)
                 project = result.scalar_one_or_none()
-                if project is None:
-                    project_rec = Project(
-                        project_id=project_id,
-                        user_id=user_id
-                    )
-                    project = await self.create_project(project=project_rec)
-                    return project
-                else:
+                if project is not None:
                     return project
 
-    async def get_user_project(self, project_id: str, user_id: int):
-        """Get a project only if it belongs to the given user. Returns None if not found or not owned."""
+        # Project not found for this user — create one.
+        # The (project_id, user_id) unique constraint allows different users
+        # to have the same project_id.
+        project_rec = Project(
+            project_id=project_id,
+            user_id=user_id
+        )
+        try:
+            return await self.create_project(project=project_rec)
+        except IntegrityError:
+            # Race condition: another concurrent request created it first
+            logger.info(f"Project {project_id} for user {user_id} was created concurrently, fetching it.")
+            async with self.db_client() as session:
+                async with session.begin():
+                    query = select(Project).where(
+                        Project.project_id == project_id,
+                        Project.user_id == user_id
+                    )
+                    result = await session.execute(query)
+                    return result.scalar_one()
+
+    async def get_user_project(self, project_id: int, user_id: int):
+        """Get a project only if it belongs to the given user. Returns None if not found."""
         async with self.db_client() as session:
             async with session.begin():
                 query = select(Project).where(
@@ -66,7 +81,7 @@ class ProjectModel(BaseDataModel):
             async with session.begin():
 
                 total_documents = await session.execute(select(
-                    func.count(Project.project_id)
+                    func.count(Project.id)
                 ).where(Project.user_id == user_id))
 
                 total_documents = total_documents.scalar_one()
@@ -85,13 +100,13 @@ class ProjectModel(BaseDataModel):
 
     async def get_project_by_id(self, project_id: int):
         """
-        Get a project by its ID without user check.
+        Get a project by its internal ID (surrogate key).
         Used internally by background tasks where authentication 
         was already performed at the API layer.
         """
         async with self.db_client() as session:
             async with session.begin():
-                query = select(Project).where(Project.project_id == project_id)
+                query = select(Project).where(Project.id == project_id)
                 result = await session.execute(query)
                 project = result.scalar_one_or_none()
                 return project

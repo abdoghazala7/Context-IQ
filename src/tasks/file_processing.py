@@ -118,7 +118,7 @@ async def _process_project_files(task_instance, project_id: int,
         if file_id:
             asset_record = await asset_model.get_asset_by_id(
                 asset_id=file_id,
-                asset_project_id=project.project_id
+                asset_project_id=project.id
             )
                 
             if asset_record is None:
@@ -141,19 +141,19 @@ async def _process_project_files(task_instance, project_id: int,
         else:
             
             project_files = await asset_model.get_all_project_assets(
-            asset_project_id=project.project_id,
+            asset_project_id=project.id,
             asset_type=AssetTypeEnum.FILE.value,
                                             )
 
             # Also include URL-type assets (stored as .txt files on disk)
             project_url_assets = await asset_model.get_all_project_assets(
-                asset_project_id=project.project_id,
+                asset_project_id=project.id,
                 asset_type=AssetTypeEnum.URL.value,
             )
 
             # Include structured-data assets (CSV / Excel files)
             project_structured_assets = await asset_model.get_all_project_assets(
-                asset_project_id=project.project_id,
+                asset_project_id=project.id,
                 asset_type=AssetTypeEnum.STRUCTURED_DATA.value,
             )
 
@@ -172,7 +172,7 @@ async def _process_project_files(task_instance, project_id: int,
                 result={"signal": error_signal}
             )
 
-            raise Exception(f"No files found for project_id: {project.project_id}")
+            raise Exception(f"No files found for project_id: {project.id}")
         
         process_controller = processcontroller(project_id=project_id)
 
@@ -185,12 +185,12 @@ async def _process_project_files(task_instance, project_id: int,
 
         if do_reset == 1:
             # delete associated vectors collection
-            collection_name = nlp_controller.create_collection_name(project_id=project.project_id)
+            collection_name = nlp_controller.create_collection_name(project_id=project.id)
             _ = await vectordb_client.delete_collection(collection_name=collection_name)
 
             # delete associated chunks
             _ = await chunk_model.delete_chunks_by_db_project_id(
-                db_project_id=project.project_id
+                db_project_id=project.id
             )
 
         for asset_id, file_id in project_files_ids.items():
@@ -217,7 +217,7 @@ async def _process_project_files(task_instance, project_id: int,
                     chunk_text=chunk.page_content,
                     chunk_metadata=chunk.metadata,
                     chunk_order=i+1,
-                    chunk_project_id=project.project_id,
+                    chunk_project_id=project.id,
                     chunk_asset_id=asset_id
                 )
                 for i, chunk in enumerate(file_chunks)
@@ -230,8 +230,9 @@ async def _process_project_files(task_instance, project_id: int,
                     "signal": responsesignal.PROCESSING_SUCCESS.value,
                     "inserted_chunks": no_records,
                     "processed_files": no_files,
-                    "project_id": project_id,
-                    "do_reset": do_reset
+                    "project_id": project.project_id,
+                    "do_reset": do_reset,
+                    "_db_id": project.id
                 }
         
         await idempotency_manager.update_task_status(

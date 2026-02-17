@@ -46,10 +46,10 @@ async def push_index(
        )
    
    chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
-   total_chunks_count = await chunk_model.get_total_chunks_count(project_id=project_id)
+   total_chunks_count = await chunk_model.get_total_chunks_count(project_id=project.id)
 
    task = index_data_content.delay(
-        project_id=project_id,
+        project_id=project.id,
         do_reset=push_request.do_reset,
         total_chunks_count=total_chunks_count 
     )

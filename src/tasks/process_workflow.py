@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 )
 def push_after_process_task(self, prev_task_result):
 
-    project_id = prev_task_result.get("project_id")
+    db_id = prev_task_result.get("_db_id")
+    user_project_id = prev_task_result.get("project_id")
     do_reset = prev_task_result.get("do_reset")
     
     async def get_total_count():
@@ -26,7 +27,7 @@ def push_after_process_task(self, prev_task_result):
              (db_engine, db_client, _, _,
               _, _, vectordb_client, _) = await get_setup_utils()
              chunk_model = await ChunkModel.create_instance(db_client=db_client)
-             count = await chunk_model.get_total_chunks_count(project_id=project_id)
+             count = await chunk_model.get_total_chunks_count(project_id=db_id)
              return count
          finally:
              if db_engine:
@@ -37,13 +38,13 @@ def push_after_process_task(self, prev_task_result):
     total_chunks_count = asyncio.run(get_total_count())
 
     result = index_data_content.delay(
-        project_id=project_id, 
+        project_id=db_id, 
         do_reset=do_reset,
         total_chunks_count=total_chunks_count 
     )
 
     return {
-        "project_id": project_id,
+        "project_id": user_project_id,
         "do_reset": do_reset,
         "triggered_indexing_task_id": result.id, 
         "status": "Indexing Triggered"

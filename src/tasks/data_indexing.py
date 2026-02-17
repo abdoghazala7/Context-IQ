@@ -105,7 +105,7 @@ async def _index_data_content(task_instance, project_id: int, do_reset: int, tot
         page_no = 1
         inserted_items_count = 0
 
-        collection_name = nlp_controller.create_collection_name(project_id=project.project_id)
+        collection_name = nlp_controller.create_collection_name(project_id=project.id)
 
         _ = await vectordb_client.create_collection(
                 collection_name=collection_name,
@@ -113,12 +113,12 @@ async def _index_data_content(task_instance, project_id: int, do_reset: int, tot
                 do_reset=do_reset,
             )
 
-        total_chunks_count = await chunk_model.get_total_chunks_count(project_id=project.project_id)
+        total_chunks_count = await chunk_model.get_total_chunks_count(project_id=project.id)
         pbar = tqdm(total=total_chunks_count, desc="Vector Indexing", position=0)
         logger.info(f"Vector Indexing progress: {inserted_items_count}/{total_chunks_count}")
 
         while has_records:
-            page_chunks = await chunk_model.get_project_chunks(db_project_id=project.project_id, page_no=page_no)
+            page_chunks = await chunk_model.get_project_chunks(db_project_id=project.id, page_no=page_no)
             
             if len(page_chunks):
                 page_no += 1
