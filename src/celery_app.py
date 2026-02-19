@@ -79,6 +79,8 @@ celery_app.conf.update(
 
     # Worker settings
     worker_concurrency=settings.CELERY_WORKER_CONCURRENCY,
+    
+    worker_prefetch_multiplier=1,  # Fair Dispatch
 
     # Connection settings for better reliability
     broker_connection_retry_on_startup=True,
