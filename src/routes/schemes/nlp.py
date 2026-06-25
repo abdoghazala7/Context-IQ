@@ -9,7 +9,7 @@ class PushRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     text: str
-    limit: Optional[int] = 5
+    limit: Optional[int] = 3
     score_threshold: Optional[float] = None
     primary_lang: Optional[str] = None
 
@@ -32,7 +32,7 @@ class SearchRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError('text field cannot be empty or contain only whitespace')
         
-        max_chars = settings.INPUT_DEFAULT_MAX_CHARACTERS or 1200
+        max_chars = 400
         if len(v) > max_chars:
             raise ValueError(
                 f'text exceeds maximum length of {max_chars} characters. '

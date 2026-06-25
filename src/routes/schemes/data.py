@@ -5,15 +5,15 @@ import re
 
 class processrequest(BaseModel):
     file_id: Optional[int] = None
-    chunk_size: Optional[int] = 1000
-    overlap_size: Optional[int] = 200
+    chunk_size: Optional[int] = 500
+    overlap_size: Optional[int] = 100
     do_reset: Optional[int] = 0
 
 
 class urlingestrequest(BaseModel):
     url: str
-    chunk_size: Optional[int] = 1000
-    overlap_size: Optional[int] = 200
+    chunk_size: Optional[int] = 500
+    overlap_size: Optional[int] = 100
 
     @field_validator("url")
     @classmethod
