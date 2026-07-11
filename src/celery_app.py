@@ -3,7 +3,9 @@ from helpers.config import get_config
 
 from stores.llm import LLMProviderFactory
 from stores.vectordb import VectorDBProviderFactory
+from stores.vision import VisionProviderFactory
 from stores.llm.templates.template_parser import TemplateParser
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -20,6 +22,8 @@ async def get_setup_utils():
 
     llm_provider_factory = LLMProviderFactory(settings)
     vectordb_provider_factory = VectorDBProviderFactory(config=settings, db_client=db_client)
+    vision_provider_factory = VisionProviderFactory(settings)
+
 
     # generation client
     generation_client = llm_provider_factory.create(provider=settings.GENERATION_BACKEND)
@@ -39,8 +43,15 @@ async def get_setup_utils():
         default_language=settings.DEFAULT_LANG,
     )
 
+    # vision client (optional multimodal PDF layer).
+    # Always safe: returns a NullVisionProvider when unconfigured, so tasks
+    # that don't need vision can simply ignore this extra tuple element.
+    vision_client = vision_provider_factory.create(provider=settings.VISION_PROVIDER)
+
     return (db_engine, db_client, llm_provider_factory, vectordb_provider_factory,
-            generation_client, embedding_client, vectordb_client, template_parser)
+            generation_client, embedding_client, vectordb_client, template_parser,
+            vision_client)
+
 
 
 # Create Celery application instance

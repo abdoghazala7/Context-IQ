@@ -44,7 +44,9 @@ async def _process_project_files(task_instance, project_id: int,
         (db_engine, db_client, llm_provider_factory, 
         vectordb_provider_factory,
         generation_client, embedding_client,
-        vectordb_client, template_parser) = await get_setup_utils()
+        vectordb_client, template_parser,
+        vision_client) = await get_setup_utils()
+
         
         # Create idempotency manager
         idempotency_manager = IdempotencyManager(db_client, db_engine)
@@ -174,7 +176,8 @@ async def _process_project_files(task_instance, project_id: int,
 
             raise Exception(f"No files found for project_id: {project.id}")
         
-        process_controller = processcontroller(project_id=project_id)
+        process_controller = processcontroller(project_id=project_id, vision_client=vision_client)
+
 
         no_records = 0
         no_files = 0

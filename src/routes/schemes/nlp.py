@@ -9,7 +9,7 @@ class PushRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     text: str
-    limit: Optional[int] = 3
+    limit: Optional[int] = 5
     score_threshold: Optional[float] = None
     primary_lang: Optional[str] = None
 
@@ -32,7 +32,7 @@ class SearchRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError('text field cannot be empty or contain only whitespace')
         
-        max_chars = 400
+        max_chars = 500
         if len(v) > max_chars:
             raise ValueError(
                 f'text exceeds maximum length of {max_chars} characters. '
@@ -40,3 +40,14 @@ class SearchRequest(BaseModel):
                 f'Please shorten your input.'
             )
         return v.strip()
+    
+    @field_validator('limit')
+    @classmethod
+    def validate_limit(cls, v: int) -> int:
+        if v is not None and v > 10:
+            raise ValueError(
+                f'limit exceeds maximum value of 10. '
+                f'Current value: {v}. '
+                f'Please provide a value of 10 or less.'
+            )
+        return v

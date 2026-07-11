@@ -9,6 +9,10 @@ system_prompt = Template("\n".join([
     "You will be provided by a set of documents associated with the user's query.",
     "Each document has a number (e.g. [1], [2]) and a granular source reference.",
     "The source reference may include page numbers, sheet names, or row ranges.",
+    "For PDF files the reference can also point at a specific Table, Image, or a Scanned Page on that page.",
+    "Content extracted from a PDF table starts with a '[PDF Table | ...]' header, an image description with '[Image Description | ...]', and full-page OCR text with '[Page Scan | ...]'.",
+    "When you cite such content, keep the exact locator shown in the Source field (e.g. Page, Table, Image, or Scanned Page).",
+
     "You MUST cite the source documents for every claim you make in your answer.",
     "Use inline citations in the format [doc_number] immediately after each claim.",
     "For example: 'The capital of France is Paris [1].' where [1] refers to Document No 1.",
@@ -24,10 +28,14 @@ system_prompt = Template("\n".join([
     "in the format: [number] source — including the page, sheet, or row details exactly as shown in the Source field.",
     "For example:",
     "  [1] report.pdf (Page: 5)",
-    "  [2] data.xlsx (Sheet: Sales | Rows: 10-20)",
-    "  [3] metrics.csv (Rows: 1-25)",
-    "  [4] notes.txt",
+    "  [2] report.pdf (Page: 3 | Table: 1 | Rows: 1-25)",
+    "  [3] report.pdf (Page: 2 | Image: 3)",
+    "  [4] scanned.pdf (Page: 7 | Scanned Page)",
+    "  [5] data.xlsx (Sheet: Sales | Rows: 10-20)",
+    "  [6] metrics.csv (Rows: 1-25)",
+    "  [7] notes.txt",
 ]))
+
 
 #### Document ####
 document_prompt = Template(

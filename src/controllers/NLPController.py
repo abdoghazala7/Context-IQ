@@ -50,15 +50,31 @@ class NLPController(basecontroller):
         if not clean_filename:
             clean_filename = raw_filename
 
-        # --- PDF Logic: Handle Page Numbers ---
+        # --- PDF Logic: Handle Page Numbers + multimodal details ---
         if "page" in metadata:
             try:
                 # Convert 0-indexed page (code) to 1-indexed page (human)
-                page_display = int(metadata["page"]) + 1 
-                return f"{clean_filename} (Page: {page_display})"
+                page_display = int(metadata["page"]) + 1
             except (ValueError, TypeError):
                 # Fallback to filename if page data is corrupted
                 return clean_filename
+
+            parts = [f"Page: {page_display}"]
+            content_type = metadata.get("content_type")
+
+            # Append granular multimodal locators when present so citations can
+            # point at the exact table / image / scanned page the model used.
+            if content_type == "table" and metadata.get("table_index"):
+                parts.append(f"Table: {metadata['table_index']}")
+                if metadata.get("row_range"):
+                    parts.append(f"Rows: {metadata['row_range']}")
+            elif content_type == "image" and metadata.get("image_index"):
+                parts.append(f"Image: {metadata['image_index']}")
+            elif content_type == "page_scan":
+                parts.append("Scanned Page")
+
+            return f"{clean_filename} ({' | '.join(parts)})"
+
 
         # --- Structured Data Logic: Handle Excel/CSV ---
         if metadata.get("format") == "structured_data":

@@ -1,5 +1,7 @@
 {
     "python.languageServer": "Pylance",
     "postman.settings.dotenv-detection-notification-visibility": false,
-    "python.terminal.activateEnvironment": true
+    "python.terminal.activateEnvironment": true,
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
 }

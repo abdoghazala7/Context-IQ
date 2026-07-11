@@ -24,9 +24,35 @@ GENERATION_MODEL_ID= "llama-3.3-70b-versatile"
 EMBEDDING_MODEL_ID= "embed-multilingual-v3.0"
 EMBEDDING_MODEL_SIZE=1024
 
-INPUT_DEFAULT_MAX_CHARACTERS = 4000
-GENERATION_DEFAULT_MAX_TOKENS = 1024
+INPUT_DEFAULT_MAX_CHARACTERS = 15000
+GENERATION_DEFAULT_MAX_TOKENS = 1536
 GENERATION_DEFAULT_TEMPERATURE = 0.1
+
+# ========================= Vision Config (Optional Multimodal PDF) =========================
+# Enables the optional Vision layer for multimodal PDF processing (image
+# descriptions + scanned-page OCR). Leave VISION_PROVIDER empty to fully
+# disable vision; text/table PDF processing keeps working regardless.
+# Valid values: GEMINI | MISTRAL | GROQ_LLAMA_SCOUT | GROQ_QWEN
+VISION_PROVIDER=
+
+GEMINI_API_KEY=
+MISTRAL_API_KEY=
+
+# Optional model-id override for the active provider (NOT a provider selector).
+VISION_MODEL_ID=
+
+# Networking / retry behaviour
+VISION_TIMEOUT_SECONDS=60
+VISION_MAX_RETRIES=3
+VISION_RETRY_BASE_SECONDS=1.0
+
+# Image optimization / guardrails
+VISION_MAX_IMAGE_BYTES=4000000
+VISION_IMAGE_MAX_WIDTH=1600
+VISION_IMAGE_JPEG_QUALITY=85
+VISION_MAX_IMAGES_PER_PAGE=8
+VISION_MIN_IMAGE_AREA_RATIO=0.01
+
 
 # ========================= Vector DB Config =========================
 VECTOR_DB_BACKEND_LITERAL = ["QDRANT", "PGVECTOR"]

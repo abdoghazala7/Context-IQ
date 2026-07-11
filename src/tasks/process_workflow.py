@@ -25,7 +25,8 @@ def push_after_process_task(self, prev_task_result):
          vectordb_client = None
          try:
              (db_engine, db_client, _, _,
-              _, _, vectordb_client, _) = await get_setup_utils()
+              _, _, vectordb_client, _, _) = await get_setup_utils()
+
              chunk_model = await ChunkModel.create_instance(db_client=db_client)
              count = await chunk_model.get_total_chunks_count(project_id=db_id)
              return count

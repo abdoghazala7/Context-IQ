@@ -43,3 +43,13 @@ httpx==0.28.1
 # Structured data ingestion (CSV / Excel)
 pandas==3.0.0
 openpyxl==3.1.5
+
+# Optional multimodal PDF vision layer
+# google-genai: modern Google Generative AI SDK (Gemini). Replaces the
+#   legacy/deprecated google-generativeai package.
+# Pillow: deterministic image resize/compression before vision API calls.
+# NOTE: Mistral OCR is called over its REST endpoint via the existing httpx
+#   dependency (no dedicated Mistral SDK required). Groq vision reuses the
+#   existing groq SDK.
+google-genai==2.10.0
+Pillow==12.3.0

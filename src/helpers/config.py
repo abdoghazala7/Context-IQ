@@ -30,6 +30,30 @@ class Config(BaseSettings):
     COHERE_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
 
+    # ========================= Vision Config =========================
+    # Optional multimodal PDF vision layer. All fields are optional and have
+    # safe defaults so the app/worker never fails to start when vision is
+    # unconfigured. Valid VISION_PROVIDER values:
+    #   GEMINI | MISTRAL | GROQ_LLAMA_SCOUT | GROQ_QWEN
+    VISION_PROVIDER: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+    MISTRAL_API_KEY: Optional[str] = None
+    # Optional model-id override for the active provider (NOT a provider selector).
+    VISION_MODEL_ID: Optional[str] = None
+
+    # Networking / retry behaviour
+    VISION_TIMEOUT_SECONDS: int = 60
+    VISION_MAX_RETRIES: int = 3
+    VISION_RETRY_BASE_SECONDS: float = 1.0
+
+    # Image optimization / guardrails
+    VISION_MAX_IMAGE_BYTES: int = 4_000_000
+    VISION_IMAGE_MAX_WIDTH: int = 1600
+    VISION_IMAGE_JPEG_QUALITY: int = 85
+    VISION_MAX_IMAGES_PER_PAGE: int = 8
+    VISION_MIN_IMAGE_AREA_RATIO: float = 0.01
+
+
     GENERATION_MODEL_ID: Optional[str] = None
     EMBEDDING_MODEL_ID: Optional[str] = None
     EMBEDDING_MODEL_SIZE: Optional[int] = None
@@ -54,10 +78,13 @@ class Config(BaseSettings):
         'OPENAI_API_KEY', 'OPENAI_API_URL', 'COHERE_API_KEY', 'GROQ_API_KEY',
         'GENERATION_MODEL_ID', 'EMBEDDING_MODEL_ID', 'EMBEDDING_MODEL_SIZE',
         'INPUT_DEFAULT_MAX_CHARACTERS', 'GENERATION_DEFAULT_MAX_TOKENS',
-        'GENERATION_DEFAULT_TEMPERATURE', mode='before'
+        'GENERATION_DEFAULT_TEMPERATURE',
+        'VISION_PROVIDER', 'GEMINI_API_KEY', 'MISTRAL_API_KEY', 'VISION_MODEL_ID',
+        mode='before'
     )
     @classmethod
     def empty_str_to_none(cls, v):
+
         if v == '' or v is None:
             return None
         return v

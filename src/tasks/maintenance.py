@@ -26,7 +26,9 @@ async def _clean_celery_executions_table(task_instance):
         (db_engine, db_client, llm_provider_factory, 
         vectordb_provider_factory,
         generation_client, embedding_client,
-        vectordb_client, template_parser) = await get_setup_utils()
+        vectordb_client, template_parser,
+        _vision_client) = await get_setup_utils()
+
 
         # Create idempotency manager
         idempotency_manager = IdempotencyManager(db_client, db_engine)

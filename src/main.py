@@ -8,6 +8,8 @@ from helpers.config import Config
 from contextlib import asynccontextmanager
 from stores.llm import LLMProviderFactory
 from stores.vectordb import VectorDBProviderFactory
+from stores.vision import VisionProviderFactory
+
 from stores.llm.templates.template_parser import TemplateParser
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -28,6 +30,8 @@ async def lifespan(app: FastAPI):
 
     llm_provider_factory = LLMProviderFactory(settings)
     vectordb_provider_factory = VectorDBProviderFactory(config=settings, db_client=app.db_client)
+    vision_provider_factory = VisionProviderFactory(settings)
+
 
     # generation client
     app.generation_client = llm_provider_factory.create(provider=settings.GENERATION_BACKEND)
@@ -40,6 +44,12 @@ async def lifespan(app: FastAPI):
     # vector db client
     app.vectordb_client = vectordb_provider_factory.create(provider=settings.VECTOR_DB_BACKEND)
     await app.vectordb_client.connect()
+
+    # vision client (optional multimodal PDF layer).
+    # NEVER a hard startup dependency: the factory returns a NullVisionProvider
+    # when VISION_PROVIDER is unset/invalid/unconfigured, so startup can't fail.
+    app.vision_client = vision_provider_factory.create(provider=settings.VISION_PROVIDER)
+
 
     # template parser
     app.template_parser = TemplateParser(
