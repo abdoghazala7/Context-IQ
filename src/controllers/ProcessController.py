@@ -30,11 +30,19 @@ class processcontroller(basecontroller):
     _STRUCTURED_ROWS_PER_DOC = 50
 
     # ---------------------- PDF multimodal tuning ----------------------
-    # Rows per serialized table batch (preamble + headers repeated each batch).
+    # Hard upper bound on rows per serialized table batch. Batches are also
+    # capped by ``_TABLE_BATCH_CHAR_BUDGET`` so that a batch reliably fits into
+    # a single downstream chunk — otherwise the ``Rows: X-Y`` header on the
+    # first sub-chunk would mislead about what the sub-chunk actually contains.
     _TABLE_ROWS_PER_BATCH = 25
+    # Soft character budget (excluding preamble) for one serialized table
+    # batch. Sized so that ``preamble + budget`` typically fits within the
+    # chunker's default chunk_size (see ``get_file_chunks``).
+    _TABLE_BATCH_CHAR_BUDGET = 650
     # A text block is considered "inside" a table when this fraction of its
     # area overlaps the table bbox (intersection-over-area).
     _TABLE_TEXT_IOA_THRESHOLD = 0.60
+
     # Elements wider than this fraction of the page act as band separators
     # (headings / wide tables read before the columns beneath them).
     _FULL_WIDTH_RATIO = 0.65
@@ -64,6 +72,14 @@ class processcontroller(basecontroller):
         # Optional multimodal vision client. May be None or a NullVisionProvider;
         # PDF text/table processing must work regardless of its availability.
         self.vision_client = vision_client
+        # Per-parse cache: the last real (non-generic) column set observed
+        # while walking pages of the CURRENT PDF, keyed by table index. Lets a
+        # multi-page table continue to carry its original column names on the
+        # next page when the extractor picks up header-less rows (Issue 6).
+        # Reset on every call to ``load_pdf_file`` so it never leaks across
+        # files handled by the same controller instance.
+        self._last_pdf_columns: dict[int, list[str]] | None = None
+
 
 
     def get_file_path(self, file_id: str) -> str:
@@ -103,8 +119,13 @@ class processcontroller(basecontroller):
             logger.warning("PyMuPDF (fitz) unavailable; using legacy PyMuPDFLoader")
             return PyMuPDFLoader(file_path).load()
 
+        # Reset per-file column carryover so a previous file cannot leak
+        # its columns into this one (Issue 6, multi-page table continuation).
+        self._last_pdf_columns = {}
+
         try:
             doc = fitz.open(file_path)
+
         except Exception as e:  # unreadable PDF is a genuine fatal condition
             logger.error(f"Failed to open PDF {file_path}: {e}")
             raise
@@ -160,9 +181,32 @@ class processcontroller(basecontroller):
             if bbox is None:
                 continue
             table_index += 1
-            serialized = self._serialize_table(table, page_index, table_index)
+            # Multi-page tables — some PDF authoring tools (Word included)
+            # emit a continuation table on the next page with no meaningful
+            # header row, causing find_tables to fall back to generic
+            # ``col_1, col_2…`` names (Issue 6, third bullet). If we saw a
+            # real header for the same table index on a previous page of
+            # THIS file, reuse it. The heuristic is intentionally strict —
+            # only the *first* table on each page inherits, and only when
+            # the current column names are all generic.
+            carry_columns = None
+            if (table_index == 1 and self._last_pdf_columns
+                    and self._last_pdf_columns.get(1)):
+                carry_columns = self._last_pdf_columns[1]
+
+            serialized = self._serialize_table(
+                table, page_index, table_index, carry_columns=carry_columns
+            )
             if not serialized:
                 continue
+            # Record real (non-generic) columns for continuation lookup on
+            # the next page.
+            cols = serialized["columns"]
+            if cols and not all(c.startswith("col_") for c in cols):
+                if self._last_pdf_columns is None:
+                    self._last_pdf_columns = {}
+                self._last_pdf_columns[table_index] = list(cols)
+
             table_bboxes.append(bbox)
             elements.append({
                 "content_type": "table",
@@ -171,6 +215,7 @@ class processcontroller(basecontroller):
                 "columns": serialized["columns"],
                 "table_index": table_index,
             })
+
 
         # --- 2. Text blocks (skip those inside tables) -----------------------
         text_char_count = 0
@@ -297,12 +342,38 @@ class processcontroller(basecontroller):
             lines.append(line_text)
         return "\n".join(lines)
 
-    @staticmethod
-    def _clean_text(text: str) -> str:
+    # Regex used to identify lines that behave as paragraph-level separators
+    # even when they are visually flush with adjacent lines inside a single
+    # PyMuPDF block (headings, numbered list items, etc.).
+    _PARAGRAPH_LEAD_PATTERN = re.compile(
+        r"^\s*("
+        r"\d+(\.\d+)*\.?\s+"                   # 1.  2.3  4.1.2  etc.
+        r"|Chapter\s+\d+"                       # Chapter 4
+        r"|Figure\s+\d+"                        # Figure 4.1
+        r"|Table\s+\d+"                         # Table 4.1
+        r"|Step\s+\d+"                          # Step 1
+        r"|Phase\s+\d+"                         # Phase 1
+        r"|[•\-\u2022]\s+"                     # bullets
+        r")",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _clean_text(cls, text: str) -> str:
         """
-        Normalize extracted text: Unicode NFKC, strip control chars,
-        dehyphenate across line breaks, and collapse excess whitespace while
-        preserving intentional line boundaries.
+        Normalize extracted text.
+
+        PyMuPDF returns one ``\\n`` per *visual line* inside a block. A single
+        printed paragraph therefore arrives as many short lines, and if we
+        keep those newlines the downstream RecursiveCharacterTextSplitter
+        treats each one as a preferred split boundary — which is exactly how
+        we end up with one-word/one-sentence chunks (Issue 1) and mid-sentence
+        splits like ``"…driver's facial\\ncues to identify…"`` (Issue 3).
+
+        The fix: collapse *soft* intra-paragraph line wraps into spaces while
+        preserving genuine paragraph boundaries (blank lines) and leading
+        markers that indicate a new logical line (headings, numbered lists,
+        bullets, ``Figure``/``Table`` captions, etc.).
         """
         if not text:
             return ""
@@ -319,9 +390,42 @@ class processcontroller(basecontroller):
         text = re.sub(r"[ \t]+", " ", text)
         # Trim spaces around newlines
         text = re.sub(r" *\n *", "\n", text)
+
+        # Collapse soft wraps. Iterate line pairs: keep a hard break only if
+        # (a) the next line is blank (paragraph boundary), or
+        # (b) the next line starts with a structural lead (heading, bullet…),
+        # or (c) the current line ends with terminal punctuation AND the next
+        # line's first character is uppercase / digit (sentence boundary).
+        lines = text.split("\n")
+        merged: list[str] = []
+        for i, ln in enumerate(lines):
+            if not merged:
+                merged.append(ln)
+                continue
+            prev = merged[-1]
+            if prev == "" or ln == "":
+                # keep the boundary
+                merged.append(ln)
+                continue
+            if cls._PARAGRAPH_LEAD_PATTERN.match(ln):
+                merged.append(ln)
+                continue
+            # Sentence-terminated on previous line + capitalized/digit start
+            # on this line => keep as a paragraph boundary too.
+            if prev[-1:] in ".!?:" and ln[:1].isalnum() and (ln[:1].isupper() or ln[:1].isdigit()):
+                merged.append(ln)
+                continue
+            # Otherwise this is a soft line wrap: merge with a space.
+            sep = "" if prev.endswith("-") else " "
+            merged[-1] = prev + sep + ln
+
+        text = "\n".join(merged)
         # Collapse 3+ blank lines into a single blank line
         text = re.sub(r"\n{3,}", "\n\n", text)
+        # Whitespace cleanup after merging
+        text = re.sub(r"[ \t]+", " ", text)
         return text.strip()
+
 
     @classmethod
     def _clean_cell(cls, value) -> str:
@@ -332,7 +436,32 @@ class processcontroller(basecontroller):
     # ------------------------------------------------------------------
     # Table serialization (hybrid: markdown for regular, rows for irregular)
     # ------------------------------------------------------------------
-    def _serialize_table(self, table, page_index: int, table_index: int):
+    def _serialize_table(self, table, page_index: int, table_index: int,
+                         carry_columns: list[str] | None = None):
+        """
+        Serialize a PyMuPDF table into one Document per batch of rows.
+
+        Two fixes here address Issue 6:
+
+        (a) **Batching is character-budgeted**, not just row-count-capped.
+            Before, a single batch could easily exceed the downstream chunk
+            budget (chunk_size=800 in the reported scenario). The splitter
+            would then cut it, leaving only the *first* sub-chunk with the
+            ``[PDF Table … Rows: X-Y]`` preamble while the continuation rows
+            landed in header-less follower chunks — and the ``Rows`` label on
+            the first sub-chunk lied about the rows actually inside it. We
+            now cap each batch's serialized *body* size to
+            ``_TABLE_BATCH_CHAR_BUDGET`` so it fits comfortably in one chunk,
+            and each batch always emits its own preamble.
+
+        (b) **Multi-page column carry-over.** When the caller passes
+            ``carry_columns`` (i.e. this is the first table on a continuation
+            page and the previous page ended with a real header row), the
+            first data row is inspected: if it looks like body (not a
+            plausible re-emitted header), we substitute the carried column
+            names in place of the generic ``col_1, col_2…`` that
+            ``find_tables`` produces on continuation pages.
+        """
         try:
             rows = table.extract()
         except Exception as e:
@@ -357,47 +486,97 @@ class processcontroller(basecontroller):
             data_rows = rows[1:]
 
         columns = [h if h else f"col_{i+1}" for i, h in enumerate(header)]
+
+        # Multi-page column carry-over. Applied only when
+        # (i) the caller says the previous page ended with the same table
+        #     (``carry_columns`` supplied),
+        # (ii) column counts match, and
+        # (iii) the current header row looks degenerate — meaning **any**
+        #      column is generic (``col_N``) or empty, or a large fraction of
+        #      the headers exceed a plausible header length (Word-generated
+        #      continuation pages tend to promote the first body row into a
+        #      pseudo-header, so real headers are short but pseudo-headers
+        #      are full sentences).
+        _HEADER_MAX_LEN = 60
+        if carry_columns and len(carry_columns) == len(columns):
+            any_generic = any(
+                (not c) or c.startswith("col_") for c in columns
+            )
+            mostly_long = (
+                sum(1 for c in columns if len(c) > _HEADER_MAX_LEN)
+                >= max(1, len(columns) // 2)
+            )
+            if any_generic or mostly_long:
+                # Push the mis-classified header row back into the data if it
+                # actually contained content (was not pure ``col_N`` fillers).
+                if any(c and not c.startswith("col_") for c in columns):
+                    data_rows = [list(header)] + list(data_rows)
+                columns = list(carry_columns)
+
+
         if not columns or not data_rows:
             return None
 
         # A table is "regular" when every row matches the column count.
         regular = all(len(r) == len(columns) for r in data_rows)
         total = len(data_rows)
-        batches = []
 
-        for start in range(0, total, self._TABLE_ROWS_PER_BATCH):
-            end = min(start + self._TABLE_ROWS_PER_BATCH, total)
-            batch = data_rows[start:end]
+        def _preamble(regular_flag: bool, row_range: str) -> str:
+            col_sep = ", " if regular_flag else " | "
+            return (f"[PDF Table | Page: {page_index + 1} | "
+                    f"Table: {table_index} | Rows: {row_range} | "
+                    f"Columns: {col_sep.join(columns)}]")
+
+        def _format_regular_row(r) -> str:
+            cells = [self._clean_cell(c) for c in r]
+            return "| " + " | ".join(cells) + " |"
+
+        def _format_irregular_row(r, absolute_row_num: int) -> str:
+            cells = [f"{h}: {self._clean_cell(c)}"
+                     for h, c in zip(columns, r)]
+            return f"Row {absolute_row_num}:\n" + " | ".join(cells)
+
+        # Header + separator lines shared by every regular batch. They count
+        # toward the char budget so a wide table still fits.
+        header_line = "| " + " | ".join(columns) + " |"
+        sep_line = "| " + " | ".join(["---"] * len(columns)) + " |"
+
+        batches: list[dict] = []
+        i = 0
+        while i < total:
+            body_lines: list[str] = []
+            body_chars = 0
+            start = i
+            # Grow the batch row-by-row until it hits either the char budget
+            # or the hard row cap.
+            while i < total and (i - start) < self._TABLE_ROWS_PER_BATCH:
+                r = data_rows[i]
+                if regular:
+                    line = _format_regular_row(r)
+                else:
+                    line = _format_irregular_row(r, absolute_row_num=i + 1)
+                # +1 accounts for the newline joining this line to the batch.
+                cost = len(line) + 1
+                # Always accept the first row of a batch — even if a single
+                # row exceeds the budget on its own, splitting it further
+                # would lose the ``Row N`` labelling and violate the promise
+                # that ``Rows: X-Y`` matches what's inside.
+                if body_lines and body_chars + cost > self._TABLE_BATCH_CHAR_BUDGET:
+                    break
+                body_lines.append(line)
+                body_chars += cost
+                i += 1
+            end = i
             row_range = f"{start + 1}-{end}"
-
             if regular:
-                preamble = (f"[PDF Table | Page: {page_index + 1} | "
-                            f"Table: {table_index} | Rows: {row_range} | "
-                            f"Columns: {', '.join(columns)}]")
-                lines = [
-                    preamble,
-                    "| " + " | ".join(columns) + " |",
-                    "| " + " | ".join(["---"] * len(columns)) + " |",
-                ]
-                for r in batch:
-                    cells = [self._clean_cell(c) for c in r]
-                    lines.append("| " + " | ".join(cells) + " |")
-                text = "\n".join(lines)
+                text = "\n".join([_preamble(True, row_range),
+                                  header_line, sep_line, *body_lines])
             else:
-                preamble = (f"[PDF Table | Page: {page_index + 1} | "
-                            f"Table: {table_index} | Rows: {row_range} | "
-                            f"Columns: {' | '.join(columns)}]")
-                lines = [preamble]
-                for offset, r in enumerate(batch, start=start + 1):
-                    lines.append(f"Row {offset}:")
-                    cells = [f"{h}: {self._clean_cell(c)}"
-                             for h, c in zip(columns, r)]
-                    lines.append(" | ".join(cells))
-                text = "\n".join(lines)
-
+                text = "\n".join([_preamble(False, row_range), *body_lines])
             batches.append({"text": text, "row_range": row_range})
 
         return {"columns": columns, "batches": batches}
+
 
     # ------------------------------------------------------------------
     # Image extraction + optimization
@@ -623,11 +802,17 @@ class processcontroller(basecontroller):
             base_meta = {
                 "source": file_path,
                 "format": "pdf",
-                "page": page_index,
+                # Store 1-indexed page numbers so metadata always agrees with
+                # the ``Page: N`` label written inside serialized tables /
+                # image descriptions / page scans (Issue 5). Downstream
+                # citation code (NLPController._build_source_label) matches
+                # this convention.
+                "page": page_index + 1,
                 "content_type": element["content_type"],
                 "bbox": element["bbox"],
                 "reading_order": order_index,
             }
+
             if element.get("vision_provider"):
                 base_meta["vision_provider"] = element["vision_provider"]
             if element.get("vision_model"):
@@ -877,27 +1062,182 @@ class processcontroller(basecontroller):
 
     def get_file_chunks(self, file_content: list, file_id: str,
                             chunk_size: int=1000, overlap_size: int=200):
+        """
+        Chunk parsed Documents for embedding.
 
-        text_splitter = RecursiveCharacterTextSplitter( 
-                            chunk_size=chunk_size, 
-                            chunk_overlap=overlap_size, 
-                            length_function=len,
-                            is_separator_regex=False
-                        )
+        For non-PDF sources the behaviour is unchanged: hand every Document to
+        the RecursiveCharacterTextSplitter as-is (the CSV / Excel / Markdown
+        loaders already produce reasonably-sized, self-describing Documents).
 
-        file_content_texts = [
-            rec.page_content
-            for rec in file_content
-        ]
+        For PDFs the naive "pass every element through the splitter" strategy
+        is what causes Issues 1-4:
 
-        file_content_metadata = [
-            rec.metadata
-            for rec in file_content
-        ]
+        * PyMuPDF emits one Document per *text block*, so a paragraph split
+          across visual lines / columns arrives as several tiny Documents.
+          The splitter never joins them, so most chunks end up far below the
+          configured ``chunk_size`` (Issue 1) and section headings become
+          isolated micro-chunks (Issue 2).
+        * A paragraph broken across two adjacent text blocks becomes two
+          chunks with mid-sentence cuts, because the splitter has no way to
+          bridge Documents (Issue 3).
+        * Serialized table batches and image / page-scan descriptions carry
+          a self-locating header on their first line. If the splitter cuts
+          them, every continuation chunk loses that header and its citation
+          identity (Issue 4).
 
-        chunks = text_splitter.create_documents(
-            file_content_texts,
-            metadatas=file_content_metadata
+        The routing here fixes all four in one place:
+
+          1. **Group** PDF text elements per page and join them with paragraph
+             separators. The splitter is then free to merge small text blocks
+             up to ``chunk_size`` — exactly the behaviour the caller expects
+             — and to break on paragraph / sentence boundaries.
+          2. **Passthrough** PDF ``table`` / ``image`` / ``page_scan`` elements
+             atomically. ``_serialize_table`` already batches by character
+             budget so each batch fits comfortably in one chunk; image and
+             page-scan bodies are short single passages that must stay whole.
+             Only when a single atomic body is larger than ``2 * chunk_size``
+             do we fall back to splitting it — and in that case we re-prepend
+             its ``[... | Page: N | ...]`` header line to every continuation
+             so the citation identifier survives (Issue 4 safety net).
+        """
+        if not file_content:
+            return []
+
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=overlap_size,
+            length_function=len,
+            is_separator_regex=False,
         )
 
+        pdf_docs = [d for d in file_content if d.metadata.get("format") == "pdf"]
+        other_docs = [d for d in file_content if d.metadata.get("format") != "pdf"]
+
+        chunks: list[Document] = []
+
+        if pdf_docs:
+            chunks.extend(
+                self._chunk_pdf_documents(pdf_docs, text_splitter,
+                                          chunk_size, overlap_size)
+            )
+
+        if other_docs:
+            texts = [d.page_content for d in other_docs]
+            metas = [d.metadata for d in other_docs]
+            chunks.extend(text_splitter.create_documents(texts, metadatas=metas))
+
         return chunks
+
+    # --- PDF chunk routing ---------------------------------------------------
+    _ATOMIC_PDF_TYPES = frozenset({"table", "image", "page_scan"})
+
+    def _chunk_pdf_documents(self, pdf_docs: list[Document],
+                             text_splitter: RecursiveCharacterTextSplitter,
+                             chunk_size: int,
+                             overlap_size: int) -> list[Document]:
+        """See ``get_file_chunks`` docstring for rationale."""
+        # Group by page. Missing ``page`` (should not happen with the current
+        # loader) is bucketed together and processed last.
+        by_page: dict[int, list[Document]] = {}
+        for d in pdf_docs:
+            by_page.setdefault(d.metadata.get("page", -1), []).append(d)
+
+        out: list[Document] = []
+
+        for page in sorted(by_page.keys()):
+            # Preserve reading order within the page.
+            page_elements = sorted(
+                by_page[page],
+                key=lambda d: d.metadata.get("reading_order", 0),
+            )
+
+            text_buffer: list[Document] = []
+
+            def _flush_text_buffer():
+                if not text_buffer:
+                    return
+                # Merge adjacent text blocks with a paragraph separator so the
+                # splitter can find real paragraph / sentence boundaries.
+                joined = "\n\n".join(d.page_content for d in text_buffer)
+                # Base metadata: keep page/source/format; drop per-block
+                # coordinates that no longer apply to the merged chunk.
+                base = dict(text_buffer[0].metadata)
+                for k in ("bbox", "reading_order"):
+                    base.pop(k, None)
+                base["content_type"] = "text"
+                out.extend(
+                    text_splitter.create_documents([joined], metadatas=[base])
+                )
+                text_buffer.clear()
+
+            for d in page_elements:
+                if d.metadata.get("content_type") in self._ATOMIC_PDF_TYPES:
+                    # An atomic element interrupts the text stream. Flush any
+                    # pending text FIRST so reading order is preserved, then
+                    # pass the atomic element through.
+                    _flush_text_buffer()
+                    out.extend(
+                        self._split_atomic_pdf_element(
+                            d, text_splitter, chunk_size, overlap_size
+                        )
+                    )
+                else:
+                    text_buffer.append(d)
+
+            _flush_text_buffer()
+
+        return out
+
+    @staticmethod
+    def _split_atomic_pdf_element(doc: Document,
+                                  text_splitter: RecursiveCharacterTextSplitter,
+                                  chunk_size: int,
+                                  overlap_size: int) -> list[Document]:
+        """
+        Emit an atomic PDF element (table batch / image description / page
+        scan) as a single Document when it fits, or as multiple header-
+        preserving Documents when it truly exceeds ``2 * chunk_size``.
+        """
+        body = doc.page_content
+        if len(body) <= chunk_size * 2:
+            return [doc]
+
+        # Isolate the "[... | Page: N | ...]" header line so we can re-prepend
+        # it to every continuation, preserving the citation identifier.
+        header_line = ""
+        rest = body
+        if body.startswith("["):
+            newline_pos = body.find("\n")
+            close_pos = body.find("]")
+            if 0 <= close_pos < (newline_pos if newline_pos != -1 else len(body)):
+                # Header ends at either the closing ']' or the first newline,
+                # whichever comes first.
+                split_at = newline_pos if newline_pos != -1 else close_pos + 1
+                header_line = body[:split_at].rstrip()
+                rest = body[split_at:].lstrip("\n")
+
+        if not header_line:
+            # No recognizable header: fall back to a plain split.
+            return text_splitter.create_documents([body], metadatas=[doc.metadata])
+
+        # Leave headroom in each sub-chunk for the re-prepended header.
+        inner_size = max(200, chunk_size - len(header_line) - 2)
+        inner_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=inner_size,
+            chunk_overlap=min(overlap_size, inner_size // 2),
+            length_function=len,
+            is_separator_regex=False,
+        )
+        parts = inner_splitter.split_text(rest)
+        results: list[Document] = []
+        for idx, part in enumerate(parts):
+            meta = dict(doc.metadata)
+            if idx > 0:
+                meta["continuation"] = True
+            results.append(
+                Document(page_content=f"{header_line}\n{part}", metadata=meta)
+            )
+        return results
+
+
+

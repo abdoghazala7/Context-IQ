@@ -53,8 +53,10 @@ class NLPController(basecontroller):
         # --- PDF Logic: Handle Page Numbers + multimodal details ---
         if "page" in metadata:
             try:
-                # Convert 0-indexed page (code) to 1-indexed page (human)
-                page_display = int(metadata["page"]) + 1
+                # ``page`` in ProcessController metadata is already stored
+                # 1-indexed (see ``_elements_to_documents``), so no offset here.
+                page_display = int(metadata["page"])
+
             except (ValueError, TypeError):
                 # Fallback to filename if page data is corrupted
                 return clean_filename
